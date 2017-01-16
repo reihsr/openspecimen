@@ -1731,6 +1731,9 @@
     "details": "Order Details",
     "no_specimens_in_list": "No specimens in order list to distribute. Add at least one specimen",
     "enter_specimen_label": "To add specimens to distribution list, enter labels or barcodes separated by a comma, tab or newline and click add",
+    "DIST_ORDER_INVALID_SPECIMENS_FOR_DP": "Do not have access to this specimen.",
+    "DIST_ORDER_NON_CONSENTING_SPECIMENS": "Consent check failed.",
+    "DIST_ORDER_SPECIMEN_DOES_NOT_EXIST": "Specimen does not exist.",
 
     "report_gen_initiated": "Generating distribution order report...",
     "downloading_report": "Downloading distribution order report...",

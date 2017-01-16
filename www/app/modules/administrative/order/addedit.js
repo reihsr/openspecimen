@@ -203,9 +203,9 @@ angular.module('os.administrative.order.addedit', ['os.administrative.models', '
 
       angular.forEach(labels, function (label) {
         if ($scope.errorsMap[label]) {
-          $scope.errorsMap[label] = $scope.errorsMap[label] + ' ' + message;
+          $scope.errorsMap[label] = $scope.errorsMap[label] + '\n' + $translate.instant('orders.' + error.code);;
         } else {
-          $scope.errorsMap[label] = message;
+          $scope.errorsMap[label] = $translate.instant('orders.' + error.code);
         }
       });
     }
