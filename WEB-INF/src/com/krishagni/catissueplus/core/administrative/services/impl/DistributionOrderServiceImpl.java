@@ -379,23 +379,23 @@ public class DistributionOrderServiceImpl implements DistributionOrderService, O
 
 		Map<Long, Specimen> specimenMap = specimens.stream().collect(Collectors.toMap(Specimen::getId, specimen -> specimen));
 		if (specimens.size() != specimenIds.size()) {
-			String notFoundLabels = order.getOrderItems().stream()
+			List<String> notFoundLabels = order.getOrderItems().stream()
 				.map(oi -> oi.getSpecimen()) // order specimens
 				.filter(os -> !specimenMap.containsKey(os.getId())) // non existing specimens
 				.map(ns -> ns.getLabel()) // non existing specimen labels
-				.collect(Collectors.joining(", "));
+				.collect(Collectors.toList());
 			ose.addError(DistributionOrderErrorCode.SPECIMEN_DOES_NOT_EXIST, notFoundLabels);
 			return;
 		}
 
 		Set<Long> allowedSites = AccessCtrlMgr.getInstance().getDistributionOrderAllowedSites(order.getDistributionProtocol());
 		Map<Long, Set<Long>> spmnSitesMap = daoFactory.getSpecimenDao().getSpecimenSites(new HashSet<>(specimenIds));
-		String errorLabels = spmnSitesMap.entrySet().stream()
+		List<String> errorLabels = spmnSitesMap.entrySet().stream()
 			.filter(spmnSites -> CollectionUtils.intersection(spmnSites.getValue(), allowedSites).isEmpty())
 			.map(spmnSites -> specimenMap.get(spmnSites.getKey()).getLabel())
-			.collect(Collectors.joining(", "));
+			.collect(Collectors.toList());
 
-		if (StringUtils.isNotBlank(errorLabels)) {
+		if (!errorLabels.isEmpty()) {
 			ose.addError(DistributionOrderErrorCode.INVALID_SPECIMENS_FOR_DP, errorLabels);
 		}
 

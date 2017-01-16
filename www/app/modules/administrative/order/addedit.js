@@ -182,10 +182,34 @@ angular.module('os.administrative.order.addedit', ['os.administrative.models', '
       orderClone.$saveOrUpdate().then(
         function(savedOrder) {
           $state.go('order-detail.overview', {orderId: savedOrder.id});
+        },
+
+        function(errors) {
+          $scope.errorsMap = {};
+          angular.forEach(errors.data, function(error) {
+            mapError(error);
+          });
         }
       );
     };
-    
+
+    function mapError(error) {
+      var errorMessage = error.message;
+      var errLabels = errorMessage.substring(errorMessage.lastIndexOf("[")+1, errorMessage.lastIndexOf("]"));
+      var labels = errLabels.split(",").map(function(item) {
+        return item.trim();
+      });
+      var message = errorMessage.replace(/\[.*\]/, '');
+
+      angular.forEach(labels, function (label) {
+        if ($scope.errorsMap[label]) {
+          $scope.errorsMap[label] = $scope.errorsMap[label] + ' ' + message;
+        } else {
+          $scope.errorsMap[label] = message;
+        }
+      });
+    }
+
     function setHeaderStatus() {
       var isOpenPresent = false;
       angular.forEach($scope.order.orderItems,

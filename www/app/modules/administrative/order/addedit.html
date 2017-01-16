@@ -207,13 +207,15 @@
       <tbody class="os-table-body">
         <tr class="row" ng-repeat="item in order.orderItems"
           ng-form="sform" ng-init="specimen=item.specimen">
-
           <td class="col">
             <div class="clearfix">
               <div class="pull-left" ng-if="!!order.request">
                 <os-checkbox ng-model="specimen.selected" ng-change="toggleSpecimenSelect(item)"></os-checkbox>
               </div>
               <div class="pull-left" style="padding-left: 12px;">
+                <span ng-if="errorsMap[specimen.label]">
+                  <span class="fa fa-exclamation-circle" style="color:red;" title="{{errorsMap[specimen.label]}}"/>
+                </span>
                 <a ui-sref="specimen({specimenId: specimen.id})">
                   <span>{{specimen.label}}</span>
                   <span ng-if="!!specimen.barcode">({{specimen.barcode}})</span>
