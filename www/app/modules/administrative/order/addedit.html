@@ -213,8 +213,8 @@
                 <os-checkbox ng-model="specimen.selected" ng-change="toggleSpecimenSelect(item)"></os-checkbox>
               </div>
               <div class="pull-left" style="padding-left: 12px;">
-                <span ng-if="errorsMap[specimen.label]">
-                  <span class="fa fa-exclamation-circle" style="color:red;" title="{{errorsMap[specimen.label]}}"/>
+                <span ng-if="spmnErrors[specimen.label]">
+                  <span class="fa fa-exclamation-circle text-danger" title="{{spmnErrors[specimen.label]}}"></span>
                 </span>
                 <a ui-sref="specimen({specimenId: specimen.id})">
                   <span>{{specimen.label}}</span>

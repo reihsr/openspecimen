@@ -380,9 +380,9 @@ public class DistributionOrderServiceImpl implements DistributionOrderService, O
 		Map<Long, Specimen> specimenMap = specimens.stream().collect(Collectors.toMap(Specimen::getId, specimen -> specimen));
 		if (specimens.size() != specimenIds.size()) {
 			List<String> notFoundLabels = order.getOrderItems().stream()
-				.map(oi -> oi.getSpecimen()) // order specimens
+				.map(DistributionOrderItem::getSpecimen) // order specimens
 				.filter(os -> !specimenMap.containsKey(os.getId())) // non existing specimens
-				.map(ns -> ns.getLabel()) // non existing specimen labels
+				.map(Specimen::getLabel) // non existing specimen labels
 				.collect(Collectors.toList());
 			ose.addError(DistributionOrderErrorCode.SPECIMEN_DOES_NOT_EXIST, notFoundLabels);
 			return;

@@ -19,6 +19,7 @@ angular.module('os.administrative.order.addedit', ['os.administrative.models', '
       $scope.instituteNames = [];
       $scope.siteList = [];
       $scope.userFilterOpts = {};
+      $scope.spmnErrors = {};
 
       $scope.input = {allItemStatus: false};
 
@@ -185,29 +186,40 @@ angular.module('os.administrative.order.addedit', ['os.administrative.models', '
         },
 
         function(errors) {
-          $scope.errorsMap = {};
-          angular.forEach(errors.data, function(error) {
-            mapError(error);
-          });
+          $scope.spmnErrors = {};
+          angular.forEach(errors.data,
+            function(error) {
+              mapSpmnError($scope.spmnErrors, error);
+            }
+          );
         }
       );
     };
 
-    function mapError(error) {
-      var errorMessage = error.message;
-      var errLabels = errorMessage.substring(errorMessage.lastIndexOf("[")+1, errorMessage.lastIndexOf("]"));
-      var labels = errLabels.split(",").map(function(item) {
-        return item.trim();
-      });
-      var message = errorMessage.replace(/\[.*\]/, '');
+    function mapSpmnError(errorsMap, error) {
+      var msg = error.message;
 
-      angular.forEach(labels, function (label) {
-        if ($scope.errorsMap[label]) {
-          $scope.errorsMap[label] = $scope.errorsMap[label] + '\n' + $translate.instant('orders.' + error.code);;
-        } else {
-          $scope.errorsMap[label] = $translate.instant('orders.' + error.code);
+      var startIdx = msg.lastIndexOf('[');
+      if (startIdx == -1) {
+        return;
+      }
+
+      var endIdx = msg.lastIndexOf(']');
+      if (endIdx == -1) {
+        return;
+      }
+
+      var uiMsg = $translate.instant('orders.api_errors.' + error.code);
+      msg.substring(startIdx + 1, endIdx).split(',').forEach(
+        function(label) {
+          label = label.trim();
+          if (errorsMap[label]) {
+            errorsMap[label] += '\n' + uiMsg;
+          } else {
+            errorsMap[label] = uiMsg;
+          }
         }
-      });
+      );
     }
 
     function setHeaderStatus() {
