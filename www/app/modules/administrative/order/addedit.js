@@ -1,8 +1,8 @@
 
 angular.module('os.administrative.order.addedit', ['os.administrative.models', 'os.biospecimen.models'])
   .controller('OrderAddEditCtrl', function(
-    $scope, $state, $translate, order, spmnRequest, Institute,
-    Specimen, SpecimensHolder, Site, DistributionProtocol, DistributionOrder, Alerts, Util, SpecimenUtil) {
+    $scope, $state, $translate, order, spmnRequest, Institute, Specimen, SpecimensHolder, Site, DistributionProtocol,
+    DistributionOrder, Alerts, Util, SpecimenUtil, DistributionOrderUi) {
     
     var ignoreQtyWarning = false;
 
@@ -180,43 +180,32 @@ angular.module('os.administrative.order.addedit', ['os.administrative.models', '
         orderClone.orderItems = items;
       }
 
-      orderClone.$saveOrUpdate().then(
+      DistributionOrderUi.newOrder(orderClone).$saveOrUpdate().then(
         function(savedOrder) {
-          $state.go('order-detail.overview', {orderId: savedOrder.id});
-        },
+          if (["SYSTEM_ERROR", "USER_ERROR"].indexOf(savedOrder.errorType) > -1) {
+            $scope.spmnErrors = {};
+            angular.forEach(savedOrder.errors,
+              function(error) {
+                mapSpmnError($scope.spmnErrors, error);
+              });
 
-        function(errors) {
-          $scope.spmnErrors = {};
-          angular.forEach(errors.data,
-            function(error) {
-              mapSpmnError($scope.spmnErrors, error);
-            }
-          );
+            Alerts.error('orders.errors.validation_failed');
+          } else {
+            $state.go('order-detail.overview', {orderId: savedOrder.id});
+          }
         }
       );
     };
 
     function mapSpmnError(errorsMap, error) {
-      var msg = error.message;
+      var uiMsg = $translate.instant('orders.api_errors.' + error.error);
 
-      var startIdx = msg.lastIndexOf('[');
-      if (startIdx == -1) {
-        return;
-      }
-
-      var endIdx = msg.lastIndexOf(']');
-      if (endIdx == -1) {
-        return;
-      }
-
-      var uiMsg = $translate.instant('orders.api_errors.' + error.code);
-      msg.substring(startIdx + 1, endIdx).split(',').forEach(
-        function(label) {
-          label = label.trim();
-          if (errorsMap[label]) {
-            errorsMap[label] += '\n' + uiMsg;
+      angular.forEach(error.params[0],
+        function(param) {
+          if (errorsMap[param]) {
+            errorsMap[param] += '\n' + uiMsg;
           } else {
-            errorsMap[label] = uiMsg;
+            errorsMap[param] = uiMsg;
           }
         }
       );
