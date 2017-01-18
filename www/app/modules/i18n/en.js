@@ -1789,13 +1789,13 @@
 
     "errors": {
       "insufficient_qty": "The distribution quantity of {{count}} {{ count == 1 ? 'specimen' : 'specimens' }} is more than the available quantity. Do you want to proceed?",
-      "validation_failed": "Validation failed: Please look for specimens with icon <span class='fa fa-exclamation-circle text-danger'></span> to know the cause."
+      "specimens_validation_failed": "Validation failed: Please look for specimens with icon <span class='fa fa-exclamation-circle text-danger'></span> to know the cause."
     },
 
     "api_errors": {
-      "INVALID_SPECIMENS_FOR_DP": "Specimen cannot be distributed using selected distribution protocol",
-      "NON_CONSENTING_SPECIMENS": "Specimen consent check failed",
-      "SPECIMEN_DOES_NOT_EXIST": "You do not have access to specimen or specimen does not exist"
+      "DIST_ORDER_INVALID_SPECIMENS_FOR_DP": "Specimen cannot be distributed using selected distribution protocol",
+      "DIST_ORDER_NON_CONSENTING_SPECIMENS": "Specimen consent check failed",
+      "DIST_ORDER_SPECIMEN_DOES_NOT_EXIST": "You do not have access to specimen or specimen does not exist"
     }
   },
 

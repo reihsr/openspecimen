@@ -14,8 +14,7 @@ angular.module('os.administrative.models',
     'os.administrative.models.setting',
     'os.administrative.models.authdomain',
     'os.administrative.models.job',
-    'os.administrative.models.support',
-    'os.administrative.models.orderui'
+    'os.administrative.models.support'
   ]
 );
  

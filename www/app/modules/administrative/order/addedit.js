@@ -1,8 +1,9 @@
 
 angular.module('os.administrative.order.addedit', ['os.administrative.models', 'os.biospecimen.models'])
   .controller('OrderAddEditCtrl', function(
-    $scope, $state, $translate, order, spmnRequest, Institute, Specimen, SpecimensHolder, Site, DistributionProtocol,
-    DistributionOrder, Alerts, Util, SpecimenUtil, DistributionOrderUi) {
+    $scope, $state, $translate, order, spmnRequest,
+    Institute, Specimen, SpecimensHolder, Site, DistributionProtocol,
+    DistributionOrder, Alerts, Util, SpecimenUtil, OrderUtil) {
     
     var ignoreQtyWarning = false;
 
@@ -180,36 +181,19 @@ angular.module('os.administrative.order.addedit', ['os.administrative.models', '
         orderClone.orderItems = items;
       }
 
-      DistributionOrderUi.newOrder(orderClone).$saveOrUpdate().then(
-        function(savedOrder) {
-          if (["SYSTEM_ERROR", "USER_ERROR"].indexOf(savedOrder.errorType) > -1) {
-            $scope.spmnErrors = {};
-            angular.forEach(savedOrder.errors,
-              function(error) {
-                mapSpmnError($scope.spmnErrors, error);
-              });
-
-            Alerts.error('orders.errors.validation_failed');
+      OrderUtil.saveOrUpdate(orderClone).then(
+        function(resp) {
+          if (resp instanceof DistributionOrder) {
+            $state.go('order-detail.overview', {orderId: resp.id});
           } else {
-            $state.go('order-detail.overview', {orderId: savedOrder.id});
+            $scope.spmnErrors = resp;
+            if (Object.keys(resp).length > 0) {
+              Alerts.error('orders.errors.specimens_validation_failed');
+            }
           }
         }
       );
     };
-
-    function mapSpmnError(errorsMap, error) {
-      var uiMsg = $translate.instant('orders.api_errors.' + error.error);
-
-      angular.forEach(error.params[0],
-        function(param) {
-          if (errorsMap[param]) {
-            errorsMap[param] += '\n' + uiMsg;
-          } else {
-            errorsMap[param] = uiMsg;
-          }
-        }
-      );
-    }
 
     function setHeaderStatus() {
       var isOpenPresent = false;
