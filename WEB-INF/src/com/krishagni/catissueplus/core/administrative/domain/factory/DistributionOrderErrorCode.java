@@ -73,7 +73,9 @@ public enum DistributionOrderErrorCode implements ErrorCode {
 
 	SPMN_NOT_FOUND,
 
-	NON_CONSENTING_SPECIMENS;
+	NON_CONSENTING_SPECIMENS,
+
+	NOT_ALLOWED;
 
 	@Override
 	public String code() {

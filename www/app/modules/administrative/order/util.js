@@ -5,7 +5,8 @@ angular.module('os.administrative.order')
      var SPMN_ERROR_CODES = [
        'DIST_ORDER_INVALID_SPECIMENS_FOR_DP',
        'DIST_ORDER_NON_CONSENTING_SPECIMENS',
-       'DIST_ORDER_SPECIMEN_DOES_NOT_EXIST'
+       'DIST_ORDER_SPECIMEN_DOES_NOT_EXIST',
+       'DIST_ORDER_NOT_ALLOWED'
      ]
     
      function saveOrUpdate(order) {

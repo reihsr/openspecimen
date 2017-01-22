@@ -50,6 +50,7 @@ import com.krishagni.catissueplus.core.common.access.AccessCtrlMgr;
 import com.krishagni.catissueplus.core.common.errors.ErrorCode;
 import com.krishagni.catissueplus.core.common.errors.ErrorType;
 import com.krishagni.catissueplus.core.common.errors.OpenSpecimenException;
+import com.krishagni.catissueplus.core.common.events.Operation;
 import com.krishagni.catissueplus.core.common.events.RequestEvent;
 import com.krishagni.catissueplus.core.common.events.ResponseEvent;
 import com.krishagni.catissueplus.core.common.events.UserSummary;
@@ -369,12 +370,32 @@ public class DistributionOrderServiceImpl implements DistributionOrderService, O
 		return daoFactory.getSpecimenDao().getSpecimens(crit.siteCps(siteCpPairs));
 	}
 
+	@SuppressWarnings("unchecked")
 	private void ensureValidSpecimens(DistributionOrder order, OpenSpecimenException ose) {
 		List<Long> specimenIds = Utility.collect(order.getOrderItems(), "specimen.id");
 		List<Specimen> specimens = getReadAccessSpecimensByIds(specimenIds);
 		if (specimens == null) {
 			ose.addError(RbacErrorCode.ACCESS_DENIED);
 			return;
+		}
+
+		String[] ops = {order.getId() == null ? Operation.CREATE.getName() : Operation.UPDATE.getName()};
+		List<Pair<Long, Long>> spmnSiteCpPairs = AccessCtrlMgr.getInstance().getReadAccessSpecimenSiteCps();
+		Set<Pair<Long, Long>> dpSiteCpPairs = AccessCtrlMgr.getInstance().getAllowedDistributionOrderSiteCps(ops);
+		List<Pair<Long, Long>> siteCpPairs = (List<Pair<Long, Long>>) CollectionUtils.intersection(spmnSiteCpPairs, dpSiteCpPairs);
+
+		List<Specimen> distAllowedSecimens = daoFactory.getSpecimenDao()
+			.getSpecimens(new SpecimenListCriteria()
+			.siteCps(siteCpPairs)
+			.ids(specimenIds));
+
+		if (specimens.size() != distAllowedSecimens.size()) {
+			List<String> labels = specimens.stream()
+				.filter(s -> !distAllowedSecimens.contains(s))
+				.map(spmn -> spmn.getLabel())
+				.collect(Collectors.toList());
+
+			ose.addError(DistributionOrderErrorCode.NOT_ALLOWED, labels);
 		}
 
 		Map<Long, Specimen> specimenMap = specimens.stream().collect(Collectors.toMap(Specimen::getId, specimen -> specimen));

@@ -1795,7 +1795,8 @@
     "api_errors": {
       "DIST_ORDER_INVALID_SPECIMENS_FOR_DP": "Specimen cannot be distributed using selected distribution protocol",
       "DIST_ORDER_NON_CONSENTING_SPECIMENS": "Specimen consent check failed",
-      "DIST_ORDER_SPECIMEN_DOES_NOT_EXIST": "You do not have access to specimen or specimen does not exist"
+      "DIST_ORDER_SPECIMEN_DOES_NOT_EXIST": "You do not have access to specimen or specimen does not exist",
+      "DIST_ORDER_NOT_ALLOWED": "Not allowed to distribute this specimen."
     }
   },
 

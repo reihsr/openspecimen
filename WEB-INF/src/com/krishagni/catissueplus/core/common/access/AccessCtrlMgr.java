@@ -915,6 +915,26 @@ public class AccessCtrlMgr {
 		ensureDistributionOrderImportRights(order);
 	}
 
+	public Set<Pair<Long, Long>> getAllowedDistributionOrderSiteCps(String[] ops) {
+		Long userId = AuthUtil.getCurrentUser().getId();
+		String resource = Resource.ORDER.getName();
+
+		List<SubjectAccess> accessList = daoFactory.getSubjectDao().getAccessList(userId, resource, ops);
+		Set<Pair<Long, Long>> siteCpPairs = new HashSet<Pair<Long, Long>>();
+		for (SubjectAccess access : accessList) {
+			CollectionProtocol cp = access.getCollectionProtocol();
+			if (access.getSite() != null) {
+				siteCpPairs.add(Pair.make(access.getSite().getId(), cp != null ? cp.getId(): null));
+			}  else {
+				for (Site site : getUserInstituteSites(userId)) {
+					siteCpPairs.add(Pair.make(site.getId(), cp != null ? cp.getId(): null));
+				}
+			}
+		}
+
+		return siteCpPairs;
+	}
+
 	private void ensureDistributionOrderImportRights(DistributionOrder order) {
 		if (isImportOp()) {
 			ensureDistributionOrderObjectRights(order, Operation.BULK_IMPORT);
@@ -947,8 +967,9 @@ public class AccessCtrlMgr {
 				sites = getUserInstituteSites(userId);
 			}
 
+			CollectionProtocol cp = access.getCollectionProtocol();
 			for (Site site : sites) {
-				siteCpPairs.add(Pair.make(site.getId(), (Long) null));
+				siteCpPairs.add(Pair.make(site.getId(), cp != null ? cp.getId(): null));
 			}
 		}
 
