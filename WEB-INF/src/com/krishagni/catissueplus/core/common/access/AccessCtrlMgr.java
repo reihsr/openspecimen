@@ -953,23 +953,20 @@ public class AccessCtrlMgr {
 		}
 	}
 
-	private Set<Pair<Long, Long>> getDistributionOrderSiteCps(String[] ops) {
+	public Set<Pair<Long, Long>> getDistributionOrderSiteCps(String[] ops) {
 		Long userId = AuthUtil.getCurrentUser().getId();
 		String resource = Resource.ORDER.getName();
 
 		List<SubjectAccess> accessList = daoFactory.getSubjectDao().getAccessList(userId, resource, ops);
 		Set<Pair<Long, Long>> siteCpPairs = new HashSet<Pair<Long, Long>>();
 		for (SubjectAccess access : accessList) {
-			Set<Site> sites = null;
-			if (access.getSite() != null) {
-				sites = access.getSite().getInstitute().getSites();
-			} else {
-				sites = getUserInstituteSites(userId);
-			}
-
 			CollectionProtocol cp = access.getCollectionProtocol();
-			for (Site site : sites) {
-				siteCpPairs.add(Pair.make(site.getId(), cp != null ? cp.getId(): null));
+			if (access.getSite() != null) {
+				siteCpPairs.add(Pair.make(access.getSite().getId(), cp != null ? cp.getId(): null));
+			} else {
+				for (Site site : getUserInstituteSites(userId)) {
+					siteCpPairs.add(Pair.make(site.getId(), cp != null ? cp.getId(): null));
+				}
 			}
 		}
 

@@ -357,10 +357,6 @@ public class DistributionOrderServiceImpl implements DistributionOrderService, O
 		}
 	}
 
-	private List<Specimen> getReadAccessSpecimensByIds(List<Long> specimenIds) {
-		return getReadAccessSpecimens(new SpecimenListCriteria().ids(specimenIds));
-	}
-
 	private List<Specimen> getReadAccessSpecimens(SpecimenListCriteria crit) {
 		List<Pair<Long, Long>> siteCpPairs = AccessCtrlMgr.getInstance().getReadAccessSpecimenSiteCps();
 		if (siteCpPairs != null && siteCpPairs.isEmpty()) {
@@ -373,44 +369,37 @@ public class DistributionOrderServiceImpl implements DistributionOrderService, O
 	@SuppressWarnings("unchecked")
 	private void ensureValidSpecimens(DistributionOrder order, OpenSpecimenException ose) {
 		List<Long> specimenIds = Utility.collect(order.getOrderItems(), "specimen.id");
-		List<Specimen> specimens = getReadAccessSpecimensByIds(specimenIds);
-		if (specimens == null) {
-			ose.addError(RbacErrorCode.ACCESS_DENIED);
-			return;
+		String[] ops = {order.getId() == null ? Operation.CREATE.getName() : Operation.UPDATE.getName()};
+
+		List<Pair<Long, Long>> siteCpPairs = new ArrayList<>();
+		if (!AuthUtil.isAdmin()) {
+			List<Pair<Long, Long>> spmnSiteCpPairs = AccessCtrlMgr.getInstance().getReadAccessSpecimenSiteCps();
+			Set<Pair<Long, Long>> dpSiteCpPairs = AccessCtrlMgr.getInstance().getAllowedDistributionOrderSiteCps(ops);
+			siteCpPairs = spmnSiteCpPairs!= null ? 
+				(List<Pair<Long, Long>>) CollectionUtils.intersection(spmnSiteCpPairs, dpSiteCpPairs)
+				: new ArrayList<Pair<Long, Long>>(dpSiteCpPairs);
+
 		}
 
-		String[] ops = {order.getId() == null ? Operation.CREATE.getName() : Operation.UPDATE.getName()};
-		List<Pair<Long, Long>> spmnSiteCpPairs = AccessCtrlMgr.getInstance().getReadAccessSpecimenSiteCps();
-		Set<Pair<Long, Long>> dpSiteCpPairs = AccessCtrlMgr.getInstance().getAllowedDistributionOrderSiteCps(ops);
-		List<Pair<Long, Long>> siteCpPairs = (List<Pair<Long, Long>>) CollectionUtils.intersection(spmnSiteCpPairs, dpSiteCpPairs);
-
-		List<Specimen> distAllowedSecimens = daoFactory.getSpecimenDao()
+		List<Specimen> specimens = daoFactory.getSpecimenDao()
 			.getSpecimens(new SpecimenListCriteria()
 			.siteCps(siteCpPairs)
 			.ids(specimenIds));
 
-		if (specimens.size() != distAllowedSecimens.size()) {
-			List<String> labels = specimens.stream()
-				.filter(s -> !distAllowedSecimens.contains(s))
-				.map(spmn -> spmn.getLabel())
+		Map<Long, Specimen> specimenMap = specimens.stream().collect(Collectors.toMap(Specimen::getId, specimen -> specimen));
+		if (specimens.size() != specimenIds.size()) {
+			List<String> labels = order.getOrderItems().stream()
+				.map(DistributionOrderItem::getSpecimen)
+				.filter(os -> !specimenMap.containsKey(os.getId()))
+				.map(Specimen::getLabel)
 				.collect(Collectors.toList());
 
 			ose.addError(DistributionOrderErrorCode.NOT_ALLOWED, labels);
 		}
 
-		Map<Long, Specimen> specimenMap = specimens.stream().collect(Collectors.toMap(Specimen::getId, specimen -> specimen));
-		if (specimens.size() != specimenIds.size()) {
-			List<String> notFoundLabels = order.getOrderItems().stream()
-				.map(DistributionOrderItem::getSpecimen) // order specimens
-				.filter(os -> !specimenMap.containsKey(os.getId())) // non existing specimens
-				.map(Specimen::getLabel) // non existing specimen labels
-				.collect(Collectors.toList());
-			ose.addError(DistributionOrderErrorCode.SPECIMEN_DOES_NOT_EXIST, notFoundLabels);
-			return;
-		}
-
+		List<Long> spmnIds = specimens.stream().map(s -> s.getId()).collect(Collectors.toList());
 		Set<Long> allowedSites = AccessCtrlMgr.getInstance().getDistributionOrderAllowedSites(order.getDistributionProtocol());
-		Map<Long, Set<Long>> spmnSitesMap = daoFactory.getSpecimenDao().getSpecimenSites(new HashSet<>(specimenIds));
+		Map<Long, Set<Long>> spmnSitesMap = daoFactory.getSpecimenDao().getSpecimenSites(new HashSet<>(spmnIds));
 		List<String> errorLabels = spmnSitesMap.entrySet().stream()
 			.filter(spmnSites -> CollectionUtils.intersection(spmnSites.getValue(), allowedSites).isEmpty())
 			.map(spmnSites -> specimenMap.get(spmnSites.getKey()).getLabel())
