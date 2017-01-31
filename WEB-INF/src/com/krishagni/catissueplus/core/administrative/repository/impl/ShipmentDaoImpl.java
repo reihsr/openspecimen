@@ -6,6 +6,7 @@ import java.util.Map;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.Criteria;
+import org.hibernate.criterion.Disjunction;
 import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Projections;
 import org.hibernate.criterion.Restrictions;
@@ -57,10 +58,12 @@ public class ShipmentDaoImpl extends AbstractDao<Shipment> implements ShipmentDa
 	@Override
 	@SuppressWarnings("unchecked")
 	public List<Specimen> getShippedSpecimensByIds(List<Long> specimenIds) {
-		return sessionFactory.getCurrentSession()
-				.getNamedQuery(GET_SHIPPED_SPECIMENS_BY_IDS)
-				.setParameterList("ids", specimenIds)
-				.list();
+		Criteria query = getSessionFactory().getCurrentSession().createCriteria(Shipment.class)
+		.createAlias("shipmentItems", "item")
+		.createAlias("item.specimen", "spec");
+		addInCond(query, "id", specimenIds);
+		query.add(Restrictions.eq("status", Status.SHIPPED));
+		return query.list();
 	}
 
 	@Override
@@ -117,9 +120,21 @@ public class ShipmentDaoImpl extends AbstractDao<Shipment> implements ShipmentDa
 			);
 	}
 	
+	private <T> void addInCond(Disjunction condition, String property, List<T> values) {
+		int numValues = values.size();
+		for (int i = 0; i < numValues; i += 500) {
+			List<T> params = values.subList(i, i + 500 > numValues ? numValues : i + 500);
+			condition.add(Restrictions.in(property, params));
+		}
+	}
+
+	private <T> void addInCond(Criteria query, String property, List<T> values) {
+		Disjunction labelIn = Restrictions.disjunction();
+		addInCond(labelIn, property, values);
+		query.add(labelIn);
+	}
+
 	private static final String FQN = Shipment.class.getName();
 	
 	private static final String GET_SHIPMENT_BY_NAME = FQN + ".getShipmentByName";
-	
-	private static final String GET_SHIPPED_SPECIMENS_BY_IDS = FQN + ".getShippedSpecimensByIds";
 }

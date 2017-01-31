@@ -145,16 +145,6 @@
         csr.id = :srId
     </query>
 
-    <query name="getByIds">
-      select
-        s
-      from
-        com.krishagni.catissueplus.core.biospecimen.domain.Specimen s
-      where
-        s.id in (:specimenIds) and
-        s.activityStatus = 'Active'
-    </query>
-
     <query name="getByVisitId">
       select
         s
@@ -191,20 +181,6 @@
         sp.id in (:specimenIds)
     </query>
 
-    <query name="getLatestDistributionAndReturnDates">
-      select
-        sp.id, max(o.executionDate), max(item.returnDate)
-      from
-        com.krishagni.catissueplus.core.administrative.domain.DistributionOrder o
-        join o.orderItems item
-        join item.specimen sp
-      where
-        o.status = 'EXECUTED' and
-        sp.id in (:specimenIds)
-      group by
-        sp.id
-    </query>
-
     <query name="getDuplicateLabelCount">
       select
         count(id)
@@ -216,18 +192,6 @@
         label
       having
         count(id) > 1
-    </query>
-
-    <query name="getStorageSite">
-      select
-        spmn.id, site.id
-      from
-        com.krishagni.catissueplus.core.biospecimen.domain.Specimen spmn
-        left join spmn.position as pos
-        left join pos.container as container
-        left join container.site as site
-      where
-        spmn.id in :specimenIds
     </query>
   </class>
 </hibernate-mapping>

@@ -1,6 +1,7 @@
 
 package com.krishagni.catissueplus.core.biospecimen.repository.impl;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -22,6 +23,8 @@ import org.hibernate.criterion.Projections;
 import org.hibernate.criterion.Restrictions;
 import org.hibernate.sql.JoinType;
 
+import com.krishagni.catissueplus.core.administrative.domain.DistributionOrder;
+import com.krishagni.catissueplus.core.administrative.domain.DistributionOrder.Status;
 import com.krishagni.catissueplus.core.biospecimen.domain.Specimen;
 import com.krishagni.catissueplus.core.biospecimen.domain.Visit;
 import com.krishagni.catissueplus.core.biospecimen.repository.SpecimenDao;
@@ -40,7 +43,6 @@ public class SpecimenDaoImpl extends AbstractDao<Specimen> implements SpecimenDa
 			.createCriteria(Specimen.class, "specimen")
 			.addOrder(Order.asc("specimen.id"))
 			.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY);
-
 
 		if (CollectionUtils.isNotEmpty(crit.ids())) {
 			addIdsCond(query, crit.ids());
@@ -123,10 +125,10 @@ public class SpecimenDaoImpl extends AbstractDao<Specimen> implements SpecimenDa
 	@SuppressWarnings("unchecked")
 	@Override
 	public List<Specimen> getSpecimensByIds(List<Long> specimenIds) {
-		return sessionFactory.getCurrentSession()
-				.getNamedQuery(GET_BY_IDS)
-				.setParameterList("specimenIds", specimenIds)
-				.list();
+		Criteria query = getSessionFactory().getCurrentSession().createCriteria(Specimen.class);
+		addInCond(query, "id", specimenIds);
+		query.add(Restrictions.eq("activityStatus", "Active"));
+		return query.list();
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -190,7 +192,7 @@ public class SpecimenDaoImpl extends AbstractDao<Specimen> implements SpecimenDa
 		query.setProjection(projs);
 		projs.add(Projections.property("id"));
 		projs.add(Projections.property("site.id"));
-		query.add(Restrictions.in("id", specimenIds));
+		addInCond(query, "id", new ArrayList<>(specimenIds));
 		
 		List<Object []> rows = query.list();
 		Map<Long, Set<Long>> results = new HashMap<>();
@@ -212,11 +214,20 @@ public class SpecimenDaoImpl extends AbstractDao<Specimen> implements SpecimenDa
 	@SuppressWarnings("unchecked")
 	@Override
 	public Map<Long, String> getDistributionStatus(List<Long> specimenIds) {
-		List<Object[]> rows = getSessionFactory().getCurrentSession()
-			.getNamedQuery(GET_LATEST_DISTRIBUTION_AND_RETURN_DATES)
-			.setParameterList("specimenIds", specimenIds)
-			.list();
+		Criteria query = getSessionFactory().getCurrentSession().createCriteria(DistributionOrder.class)
+			.createAlias("orderItems", "orderItems")
+			.createAlias("orderItems.specimen", "specimen");
 
+		ProjectionList projs = Projections.projectionList();
+		query.setProjection(projs);
+		projs.add(Projections.property("specimen.id"));
+		projs.add(Projections.max("executionDate"));
+		projs.add(Projections.max("orderItems.returnDate"));
+		query.add(Restrictions.eq("status", Status.EXECUTED));
+		addIdsCond(query, specimenIds);
+		projs.add(Projections.groupProperty("specimen.id"));
+
+		List<Object []> rows = query.list();
 		return rows.stream().collect(
 			Collectors.toMap(
 				row -> (Long)row[0],
@@ -269,9 +280,17 @@ public class SpecimenDaoImpl extends AbstractDao<Specimen> implements SpecimenDa
 	@SuppressWarnings("unchecked")
 	@Override
 	public Map<Long, Long> getSpecimenStorageSite(Set<Long> specimenIds) {
-		List<Object[]> rows = getCurrentSession().getNamedQuery(GET_STORAGE_SITE)
-			.setParameterList("specimenIds", specimenIds)
-			.list();
+		Criteria query = getSessionFactory().getCurrentSession().createCriteria(Specimen.class)
+			.createAlias("position", "pos")
+			.createAlias("pos.container", "container")
+			.createAlias("container.site", "site");
+
+		ProjectionList projs = Projections.projectionList();
+		query.setProjection(projs);
+		projs.add(Projections.property("id"));
+		projs.add(Projections.property("site.id"));
+		addInCond(query, "id", new ArrayList<>(specimenIds));
+		List<Object []> rows = query.list();
 
 		// null value for site means virtual specimen
 		HashMap<Long, Long> result = new HashMap<>();
@@ -316,7 +335,6 @@ public class SpecimenDaoImpl extends AbstractDao<Specimen> implements SpecimenDa
 		for (int i = 0; i < numValues; i += 500) {
 			List<T> params = values.subList(i, i + 500 > numValues ? numValues : i + 500);
 			condition.add(Restrictions.in(property, params));
-			i += 500;
 		}
 	}
 
@@ -465,15 +483,9 @@ public class SpecimenDaoImpl extends AbstractDao<Specimen> implements SpecimenDa
 
 	private static final String GET_PARENT_BY_VISIT_AND_SR = FQN + ".getParentByVisitAndReq";
 	
-	private static final String GET_BY_IDS = FQN + ".getByIds";
-	
 	private static final String GET_BY_VISIT_ID = FQN + ".getByVisitId";
 	
 	private static final String GET_BY_VISIT_NAME = FQN + ".getByVisitName";
 	
-	private static final String GET_LATEST_DISTRIBUTION_AND_RETURN_DATES = FQN + ".getLatestDistributionAndReturnDates";
-
 	private static final String GET_DUPLICATE_LABEL_COUNT = FQN + ".getDuplicateLabelCount";
-
-	private static final String GET_STORAGE_SITE = FQN + ".getStorageSite";
 }
