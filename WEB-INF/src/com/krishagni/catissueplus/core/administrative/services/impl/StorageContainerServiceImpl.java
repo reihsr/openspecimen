@@ -588,12 +588,8 @@ public class StorageContainerServiceImpl implements StorageContainerService, Obj
 			StorageContainer container = getContainer(req.getPayload());
 			AccessCtrlMgr.getInstance().ensureReadContainerRights(container);
 
-			if (container.isDimensionless()) {
-				return ResponseEvent.response(Collections.emptyList());
-			} else {
-				return ResponseEvent.response(daoFactory.getStorageContainerDao()
-					.getChildContainers(container.getId(), container.getNoOfColumns()));
-			}
+			return ResponseEvent.response(daoFactory.getStorageContainerDao()
+				.getChildContainers(container.getId(), container.getNoOfColumns()));
 		} catch (OpenSpecimenException ose) {
 			return ResponseEvent.error(ose);
 		} catch (Exception e) {

@@ -295,12 +295,12 @@ public class StorageContainerDaoImpl extends AbstractDao<StorageContainer> imple
 
 	@Override
 	@SuppressWarnings(value = "unchecked")
-	public List<StorageContainerSummary> getChildContainers(Long containerId, int noOfColumns) {
+	public List<StorageContainerSummary> getChildContainers(Long containerId, Integer noOfColumns) {
 		List<Object[]> rows = getCurrentSession().getNamedQuery(GET_CHILD_CONTAINERS)
 			.setLong("parentId", containerId)
 			.list();
 
-		return rows.stream().map(row -> createContainer(row, noOfColumns))
+		return rows.stream().map(row -> createContainer(row, noOfColumns == null ? 10000 : noOfColumns))
 			.sorted(this::comparePositions).collect(Collectors.toList());
 	}
 
@@ -380,9 +380,12 @@ public class StorageContainerDaoImpl extends AbstractDao<StorageContainer> imple
 			StorageLocationSummary location = new StorageLocationSummary();
 			location.setId((Long)row[idx++]);
 
-			int rowNo = (Integer)row[idx++];
-			int colNo = (Integer)row[idx++];
-			location.setPosition((rowNo - 1) * noOfColumns + colNo);
+			if (row[idx] != null) {				// dimensionless container does not have location
+				int rowNo = (Integer)row[idx++];
+				int colNo = (Integer)row[idx++];
+				location.setPosition((rowNo - 1) * noOfColumns + colNo);
+			}
+
 			container.setStorageLocation(location);
 		}
 
@@ -402,8 +405,11 @@ public class StorageContainerDaoImpl extends AbstractDao<StorageContainer> imple
 			//
 			// Get back actual position value based on parent container dimension
 			//
-			int rowNo = (location.getPosition() - 1) / 10000 + 1, colNo = (location.getPosition() - 1) % 10000 + 1;
-			location.setPosition((rowNo - 1) * parent.getNoOfColumns() + colNo);
+
+			if (location.getPosition() != null) {
+				int rowNo = (location.getPosition() - 1) / 10000 + 1, colNo = (location.getPosition() - 1) % 10000 + 1;
+				location.setPosition((rowNo - 1) * parent.getNoOfColumns() + colNo);
+			}
 
 			if (parent.getChildContainers() == null) {
 				parent.setChildContainers(new ArrayList<>());
@@ -424,6 +430,18 @@ public class StorageContainerDaoImpl extends AbstractDao<StorageContainer> imple
 	}
 
 	private int comparePositions(StorageContainerSummary s1, StorageContainerSummary s2) {
+		if (s1.getStorageLocation().getPosition() == null && s2.getStorageLocation().getPosition() == null) {
+			return 0;
+		}
+
+		if (s1.getStorageLocation().getPosition() == null) {
+			return -1;
+		}
+
+		if (s2.getStorageLocation().getPosition() == null) {
+			return 1;
+		}
+
 		return s1.getStorageLocation().getPosition() - s2.getStorageLocation().getPosition();
 	}
 

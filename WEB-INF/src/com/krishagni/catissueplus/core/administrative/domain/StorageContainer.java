@@ -911,7 +911,7 @@ public class StorageContainer extends BaseEntity {
 			freezer = freezer.getParentContainer();
 		}
 
-		if (freezer.getCapacity() != null && freezer.getCapacity() > 0) {
+		if (freezer.isDimensionless() || (freezer.getCapacity() != null && freezer.getCapacity() > 0)) {
 			return;
 		}
 

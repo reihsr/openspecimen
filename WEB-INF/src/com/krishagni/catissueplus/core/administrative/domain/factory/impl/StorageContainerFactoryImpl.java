@@ -433,7 +433,7 @@ public class StorageContainerFactoryImpl implements StorageContainerFactory {
 			}
 			
 			return null;
-		} else if (parentContainer.isDimensionless()) {
+		} else if (!parentContainer.isDimensionless() && container.isDimensionless()) {
 			ose.addError(StorageContainerErrorCode.CANNOT_HOLD_CONTAINER, parentContainer.getName(), container.getName());
 			return null;
 		} else {
@@ -472,7 +472,7 @@ public class StorageContainerFactoryImpl implements StorageContainerFactory {
 	private void setPosition(StorageContainerDetail detail, StorageContainer container, OpenSpecimenException ose) {
 		StorageContainer parentContainer = container.getParentContainer();
 		StorageLocationSummary location = detail.getStorageLocation();
-		if (parentContainer == null || parentContainer.isDimensionless() || location == null) { // top-level container; therefore no position
+		if (parentContainer == null || location == null) { // top-level container; therefore no position
 			return;
 		}
 
