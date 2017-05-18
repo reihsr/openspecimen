@@ -2223,7 +2223,9 @@
         "server_port": "Email Server Port",
         "server_port_desc": "Email server port.",
         "starttls_enabled": "StartTLS",
-        "starttls_enabled_desc": "Enable if StartTLS is to be used for your email server."
+        "starttls_enabled_desc": "Enable if StartTLS is to be used for your email server.",
+        "email_disable": "Disable All Emails",
+        "email_disable_desc": "Disable all emails from OpenSpecimen."
       },
 
       "notifications": {
