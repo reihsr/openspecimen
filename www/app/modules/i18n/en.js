@@ -2095,7 +2095,7 @@
         "active_users_login_days": "Active User Login Days Criteria",
         "active_users_login_days_desc": "Number of days elapsed since last login before user is considered as inactive",
         "system_lockdown": "System Lockdown",
-        "system_lockdown_desc": "All the users are restricted to login or perform any operation except the super admin user in OpenSpecimen"
+        "system_lockdown_desc": "Stop all users from using OpenSpecimen except super admins."
       },
 
       "biospecimen": {
