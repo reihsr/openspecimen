@@ -2257,7 +2257,9 @@
         "email_cp_expiring_notification": "Expiring CP",
         "email_cp_expiring_notification_desc": "Send reminder emails when collection protocol is about to expire.",
         "email_dp_expiring_notification": "Expiring DP",
-        "email_dp_expiring_notification_desc": "Send reminder emails when distribution protocol is about to expire."
+        "email_dp_expiring_notification_desc": "Send reminder emails when distribution protocol is about to expire.",
+        "enable_admin_copy_emails": "Email Admin for Import",
+        "enable_admin_copy_emails_desc": "Set to true if you want to send all CSV import emails to administrator."
       },
 
       "catalog": {

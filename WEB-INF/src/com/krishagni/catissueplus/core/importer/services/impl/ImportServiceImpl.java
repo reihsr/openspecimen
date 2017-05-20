@@ -836,6 +836,7 @@ public class ImportServiceImpl implements ImportService {
 			props.put("status", getMsg("bulk_import_statuses_" + job.getStatus()));
 			props.put("atomic", atomic);
 			props.put("$subject", subjParams);
+			props.put("ccAdmin", ConfigUtil.getInstance().getBoolSetting("notifications", "enable_admin_copy_emails", false));
 
 			String[] rcpts = {job.getCreatedBy().getEmailAddress()};
 			EmailUtil.getInstance().sendEmail(JOB_STATUS_EMAIL_TMPL, rcpts, null, props);
