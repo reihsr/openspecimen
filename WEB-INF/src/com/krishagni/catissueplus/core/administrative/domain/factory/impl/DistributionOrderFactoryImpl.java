@@ -108,14 +108,17 @@ public class DistributionOrderFactoryImpl implements DistributionOrderFactory {
 		}
 		
 		DistributionProtocol dp = null;
+		Object key = null;
 		if (dpId != null) {
 			dp = daoFactory.getDistributionProtocolDao().getById(dpId);
+			key = dpId;
 		} else {
 			dp = daoFactory.getDistributionProtocolDao().getByShortTitle(dpShortTitle);
+			key = dpShortTitle;
 		}
 		
 		if (dp == null) {
-			ose.addError(DistributionProtocolErrorCode.NOT_FOUND);
+			ose.addError(DistributionProtocolErrorCode.NOT_FOUND, key, 1);
 			return;
 		}
 
@@ -359,7 +362,7 @@ public class DistributionOrderFactoryImpl implements DistributionOrderFactory {
 	}
 	
 	private Specimen getSpecimen(SpecimenInfo info, OpenSpecimenException ose) {
-		return specimenResolver.getSpecimen(info.getId(), info.getCpShortTitle(), info.getLabel(), ose);
+		return specimenResolver.getSpecimen(info.getId(), info.getCpShortTitle(), info.getLabel(), info.getBarcode(), ose);
 	}
 
 	private void setOrderItemStatus(DistributionOrderItemDetail detail, DistributionOrderItem item, OpenSpecimenException ose) {

@@ -60,7 +60,17 @@ public enum StorageContainerErrorCode implements ErrorCode {
 
 	INVALID_CELL_DISP_PROP,
 
-	INVALID_CAPACITY;
+	DL_TO_REG_NA,
+
+	REG_TO_DL_NA,
+
+	DIMLESS_NO_MAP,
+
+	INVALID_CAPACITY,
+
+	AUTOMATED_NOT_DIMENSIONLESS,
+
+	SPMNS_RPT_NOT_CONFIGURED;
 
 	@Override
 	public String code() {

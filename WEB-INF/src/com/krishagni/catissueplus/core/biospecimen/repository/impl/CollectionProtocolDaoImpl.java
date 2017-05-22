@@ -8,6 +8,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
@@ -21,12 +23,13 @@ import org.hibernate.criterion.Restrictions;
 
 import com.krishagni.catissueplus.core.biospecimen.domain.CollectionProtocol;
 import com.krishagni.catissueplus.core.biospecimen.domain.CollectionProtocolEvent;
-import com.krishagni.catissueplus.core.biospecimen.domain.ConsentTier;
+import com.krishagni.catissueplus.core.biospecimen.domain.CpConsentTier;
 import com.krishagni.catissueplus.core.biospecimen.domain.CpWorkflowConfig;
 import com.krishagni.catissueplus.core.biospecimen.domain.SpecimenRequirement;
 import com.krishagni.catissueplus.core.biospecimen.events.CollectionProtocolSummary;
 import com.krishagni.catissueplus.core.biospecimen.repository.CollectionProtocolDao;
 import com.krishagni.catissueplus.core.biospecimen.repository.CpListCriteria;
+import com.krishagni.catissueplus.core.common.Pair;
 import com.krishagni.catissueplus.core.common.events.UserSummary;
 import com.krishagni.catissueplus.core.common.repository.AbstractDao;
 import com.krishagni.catissueplus.core.common.util.Status;
@@ -36,8 +39,8 @@ public class CollectionProtocolDaoImpl extends AbstractDao<CollectionProtocol> i
 	@SuppressWarnings("unchecked")
 	@Override
 	public List<CollectionProtocolSummary> getCollectionProtocols(CpListCriteria cpCriteria) {
-		List<CollectionProtocolSummary> cpList = new ArrayList<CollectionProtocolSummary>();
-		Map<Long, CollectionProtocolSummary> cpMap = new HashMap<Long, CollectionProtocolSummary>();
+		List<CollectionProtocolSummary> cpList = new ArrayList<>();
+		Map<Long, CollectionProtocolSummary> cpMap = new HashMap<>();
 		
 		boolean includePi = cpCriteria.includePi();
 		boolean includeStats = cpCriteria.includeStat();		
@@ -53,15 +56,17 @@ public class CollectionProtocolDaoImpl extends AbstractDao<CollectionProtocol> i
 		}
 
 		if (includeStats && !cpMap.isEmpty()) {
-			rows = getSessionFactory().getCurrentSession()
-					.getNamedQuery(GET_PARTICIPANT_N_SPECIMEN_CNT)
-					.setParameterList("cpIds", cpMap.keySet())
-					.list();
+			rows = getCurrentSession().getNamedQuery(GET_PARTICIPANT_N_SPECIMEN_CNT)
+				.setParameterList("cpIds", cpMap.keySet())
+				.list();
 			
 			for (Object[] row : rows) {
 				Long cpId = (Long)row[0];
 				CollectionProtocolSummary cp = cpMap.get(cpId);
-				cp.setParticipantCount((Long)row[1]);
+				if (!cp.isSpecimenCentric()) {
+					cp.setParticipantCount((Long)row[1]);
+				}
+
 				cp.setSpecimenCount((Long)row[2]);			
 			}			
 		}
@@ -70,8 +75,9 @@ public class CollectionProtocolDaoImpl extends AbstractDao<CollectionProtocol> i
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public List<Long> getAllCpIds() {
-		return getCurrentSession().getNamedQuery(GET_ALL_CP_IDS).list();
+		return (List<Long>) getCurrentSession().getNamedQuery(GET_ALL_CP_IDS).list();
 	}
 
 	@Override
@@ -154,12 +160,14 @@ public class CollectionProtocolDaoImpl extends AbstractDao<CollectionProtocol> i
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public List<Long> getSiteIdsByCpIds(Collection<Long> cpIds) {
-		return getSessionFactory().getCurrentSession()
+	public Set<Pair<Long, Long>> getSiteCps(Collection<Long> cpIds) {
+		List<Object[]> rows = getSessionFactory().getCurrentSession()
 				.getNamedQuery(GET_SITE_IDS_BY_CP_IDS)
 				.setParameterList("cpIds", cpIds)
 				.list();
-	}	
+
+		return rows.stream().map(row -> Pair.make((Long)row[1], (Long)row[0])).collect(Collectors.toSet());
+	}
 	
 	@Override
 	public CollectionProtocolEvent getCpe(Long cpeId) {
@@ -188,7 +196,7 @@ public class CollectionProtocolDaoImpl extends AbstractDao<CollectionProtocol> i
 		
 		return events != null && !events.isEmpty() ? events.iterator().next() : null;
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public CollectionProtocolEvent getCpeByEventLabel(String title, String label) {
@@ -287,16 +295,16 @@ public class CollectionProtocolDaoImpl extends AbstractDao<CollectionProtocol> i
 	}
 
 	@Override
-	public ConsentTier getConsentTier(Long consentId) {
-		return (ConsentTier) sessionFactory.getCurrentSession()
+	public CpConsentTier getConsentTier(Long consentId) {
+		return (CpConsentTier) sessionFactory.getCurrentSession()
 				.getNamedQuery(GET_CONSENT_TIER)
 				.setLong("consentId", consentId)
 				.uniqueResult();
 	}
 	
 	@Override
-	public ConsentTier getConsentTierByStatement(Long cpId, String statement) {
-		return (ConsentTier) sessionFactory.getCurrentSession()
+	public CpConsentTier getConsentTierByStatement(Long cpId, String statement) {
+		return (CpConsentTier) sessionFactory.getCurrentSession()
 				.getNamedQuery(GET_CONSENT_TIER_BY_STATEMENT)
 				.setLong("cpId", cpId)
 				.setString("statement", statement);
@@ -308,6 +316,16 @@ public class CollectionProtocolDaoImpl extends AbstractDao<CollectionProtocol> i
 				.getNamedQuery(GET_CONSENT_RESP_COUNT)
 				.setLong("consentId", consentId)
 				.uniqueResult()).intValue();
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public boolean anyBarcodingEnabledCpExists() {
+		List<Object> result = sessionFactory.getCurrentSession()
+				.getNamedQuery(GET_BARCODING_ENABLED_CP_IDS)
+				.setMaxResults(1)
+				.list();
+		return CollectionUtils.isNotEmpty(result);
 	}
 		
 	@Override
@@ -377,6 +395,7 @@ public class CollectionProtocolDaoImpl extends AbstractDao<CollectionProtocol> i
 		projs.add(Projections.property("startDate"));
 		projs.add(Projections.property("ppidFormat"));
 		projs.add(Projections.property("manualPpidEnabled"));
+		projs.add(Projections.property("specimenCentric"));
 
 		if (cpCriteria.includePi()) {
 			projs.add(Projections.property("pi.id"));
@@ -398,6 +417,8 @@ public class CollectionProtocolDaoImpl extends AbstractDao<CollectionProtocol> i
 		cp.setStartDate((Date)fields[idx++]);
 		cp.setPpidFmt((String)fields[idx++]);
 		cp.setManualPpidEnabled((Boolean)fields[idx++]);
+		cp.setSpecimenCentric((Boolean)fields[idx++]);
+
 		if (includePi) {
 			UserSummary user = new UserSummary();
 			user.setId((Long)fields[idx++]);
@@ -453,4 +474,6 @@ public class CollectionProtocolDaoImpl extends AbstractDao<CollectionProtocol> i
 	private static final String SR_FQN = SpecimenRequirement.class.getName();
 	
 	private static final String GET_SR_BY_CODE = SR_FQN + ".getByCode";
+
+	private static final String GET_BARCODING_ENABLED_CP_IDS = FQN + ".getBarcodingEnabledCpIds";
 }

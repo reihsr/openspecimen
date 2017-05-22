@@ -22,7 +22,8 @@ angular.module('os.administrative.container',
           $scope.containerResource = {
             createOpts: {resource: 'StorageContainer', operations: ['Create']},
             updateOpts: {resource: 'StorageContainer', operations: ['Update']},
-            deleteOpts: {resource: 'StorageContainer', operations: ['Delete']}
+            deleteOpts: {resource: 'StorageContainer', operations: ['Delete']},
+            importOpts: {resource: 'StorageContainer', operations: ['Bulk Import']}
           }
         },
         parent: 'signed-in'
@@ -50,6 +51,9 @@ angular.module('os.administrative.container',
             }
             
             return null;
+          },
+          barcodingEnabled: function(CollectionProtocol) {
+            return CollectionProtocol.getBarcodingEnabled();
           }
         },
         controller: 'ContainerAddEditCtrl',
@@ -103,6 +107,10 @@ angular.module('os.administrative.container',
         resolve: {
           containerViewState: function(ContainerViewState) {
             return new ContainerViewState();
+          },
+
+          barcodingEnabled: function(CollectionProtocol) {
+            return CollectionProtocol.getBarcodingEnabled();
           }
         },
         abstract: true,
@@ -164,6 +172,12 @@ angular.module('os.administrative.container',
         resolve: {
         },
         controller: 'ContainerLocationsCtrl',
+        parent: 'container-detail'
+      })
+      .state('container-detail.specimens', {
+        url: '/specimens',
+        templateUrl: 'modules/administrative/container/specimens.html',
+        controller: 'ContainerSpecimensCtrl',
         parent: 'container-detail'
       });
   })

@@ -1,6 +1,6 @@
 angular.module('os.administrative.container.addedit', ['os.administrative.models'])
   .controller('ContainerAddEditCtrl', function(
-    $scope, $state, $stateParams, $q, container, containerType,
+    $scope, $state, $stateParams, $q, container, containerType, barcodingEnabled,
     Container, ContainerType, CollectionProtocol, PvManager, Util, Alerts) {
 
     var allSpecimenTypes = undefined;
@@ -8,9 +8,13 @@ angular.module('os.administrative.container.addedit', ['os.administrative.models
 
     function init() {
       container.storageLocation = container.storageLocation || {};
+      container.$$regular = !container.id;
+      container.$$dimensionless = !!container.id && container.noOfRows == null && container.noOfColumns == null;
+      container.automated = !container.id ? false : container.automated;
+
       $scope.container = container;
 
-      $scope.ctx = { mode: 'single', view: '', capacityReq: !!container.capacity};
+      $scope.ctx = {mode: 'single', view: '', capacityReq: !!container.capacity, barcodingEnabled: barcodingEnabled};
       if ($stateParams.mode == 'createHierarchy') {
         $scope.ctx.mode = 'hierarchy';
       }
@@ -274,6 +278,10 @@ angular.module('os.administrative.container.addedit', ['os.administrative.models
       attrsToDelete.forEach(function(attr) {
         delete $scope.container[attr];
       });
+
+      if ($scope.ctx.mode != 'single') {
+        container.$$dimensionless = false;
+      }
     }
 
     //
@@ -324,6 +332,24 @@ angular.module('os.administrative.container.addedit', ['os.administrative.models
           $state.go('container-list');
         }
       );
+    }
+
+    $scope.setDimensionless = function() {
+      $scope.container.$$regular = false;
+      $scope.container.$$dimensionless = true;
+      $scope.container.noOfRows = $scope.container.noOfColumns = null;
+      $scope.container.positionLabelingMode = 'LINEAR';
+      $scope.container.storeSpecimensEnabled = true;
+      $scope.container.rowLabelingScheme = $scope.container.columnLabelingScheme = 'Numbers';
+    }
+
+    $scope.setAutomated = function() {
+      $scope.container.automated = true;
+      $scope.setDimensionless();
+    }
+
+    $scope.setRegular = function() {
+      $scope.container.$$dimensionless = $scope.container.automated = false;
     }
 
     init();

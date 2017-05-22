@@ -11,12 +11,18 @@ public class ImportDetail {
 	private String importType;
 	
 	private String csvType;
-	
+
+	private String dateFormat;
+
+	private String timeFormat;
+
 	private String inputFileId;
 
 	private ImportListener listener;
 	
 	private Map<String, String> objectParams = new HashMap<>();
+
+	private boolean atomic;
 
 	public String getObjectType() {
 		return objectType;
@@ -42,6 +48,22 @@ public class ImportDetail {
 		this.csvType = csvType;
 	}
 
+	public String getDateFormat() {
+		return dateFormat;
+	}
+
+	public void setDateFormat(String dateFormat) {
+		this.dateFormat = dateFormat;
+	}
+
+	public String getTimeFormat() {
+		return timeFormat;
+	}
+
+	public void setTimeFormat(String timeFormat) {
+		this.timeFormat = timeFormat;
+	}
+
 	public String getInputFileId() {
 		return inputFileId;
 	}
@@ -64,5 +86,13 @@ public class ImportDetail {
 
 	public void setListener(ImportListener listener) {
 		this.listener = listener;
+	}
+
+	public boolean isAtomic() {
+		return atomic;
+	}
+
+	public void setAtomic(boolean atomic) {
+		this.atomic = atomic;
 	}
 }

@@ -34,7 +34,9 @@ angular.module('openspecimen')
       }
     }
   })
-  .controller('LoginCtrl', function($scope, $rootScope, $state, $http, $location, AuthDomain, AuthService) {
+  .controller('LoginCtrl', function(
+    $scope, $rootScope, $state, $stateParams, $http, $location, $injector,
+    AuthDomain, AuthService) {
 
     function init() {
       $scope.loginData = {};
@@ -50,6 +52,18 @@ angular.module('openspecimen')
           $state.go('home');
         }
         //return;
+      } else if (!$stateParams.directVisit && $injector.has('scCatalog')) {
+        //
+        // User not logged in
+        //
+        var catalogId = $injector.get('scCatalog').defCatalogId;
+        if (catalogId) {
+          $state.go('sc-catalog-dashboard', {catalogId: catalogId}, {location: 'replace'});
+        }
+      }
+
+      if ($stateParams.directVisit == 'true') {
+        $rootScope.reqState = undefined;
       }
 
       loadDomains();
@@ -80,7 +94,7 @@ angular.module('openspecimen')
         };
         $rootScope.loggedIn = true;
         AuthService.saveToken(result.data.token);
-        if ($rootScope.reqState) {
+        if ($rootScope.reqState && $rootScope.state.name != $rootScope.reqState.name) {
           $state.go($rootScope.reqState.name, $rootScope.reqState.params);
           $rootScope.reqState = undefined;
         } else {

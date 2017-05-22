@@ -15,13 +15,13 @@ angular.module('os.biospecimen.visit', [
         template: '<div ui-view></div>',
         resolve: {
           visit: function($stateParams, cpr, Visit) {
-            if (!!$stateParams.visitId) {
+            if (!!$stateParams.visitId && $stateParams.visitId > 0) {
               return Visit.getById($stateParams.visitId);
             } else if (!!$stateParams.eventId) {
               return Visit.getAnticipatedVisit($stateParams.eventId, cpr.registrationDate);
             }
 
-            return null;           
+            return null;
           }
         },
         controller: function($scope, cpr, visit) {
@@ -44,6 +44,12 @@ angular.module('os.biospecimen.visit', [
         resolve: {
           extensionCtxt: function(cp, Visit) {
             return Visit.getExtensionCtxt({cpId: cp.id});
+          },
+          latestVisit: function(cpr, visit) {
+            //
+            // required for lastest visit CD
+            //
+            return visit.id ? null : cpr.getLatestVisit();
           }
         },
         controller: 'AddEditVisitCtrl',

@@ -57,4 +57,32 @@
       <column name="extractSprText_MOD" type="${bit.type}"/>
     </addColumn>
   </changeSet>
+
+  <changeSet author="vlonushte" id="Audit and track changes to specimen's collection protocol">
+    <addColumn tableName="CATISSUE_SPECIMEN_AUD">
+      <column name="COLLECTION_PROTOCOL_ID" type="${int.type}"/>
+      <column name="collectionProtocol_MOD" type="${bit.type}"/>
+    </addColumn>
+  </changeSet>
+
+  <changeSet author="vpawar" id="Audit and track changes to participant's source">
+    <addColumn tableName="CATISSUE_PARTICIPANT_AUD">
+      <column name="SOURCE" type="${text.type}(16)"/>
+      <column name="source_MOD" type="${bit.type}"/>
+    </addColumn>
+  </changeSet>
+
+  <changeSet author="ckhilosiya" id="Audit and track changes to specimen barcode setting">
+    <addColumn tableName="CAT_COLLECTION_PROTOCOL_AUD">
+      <column name="BARCODING_ENABLED" type="${boolean.type}"/>
+      <column name="barcodingEnabled_MOD" type="${bit.type}"/>
+    </addColumn>
+  </changeSet>
+
+  <changeSet author="vgaikwad" id="Audit and track changes to user's primary site">
+    <addColumn tableName="CATISSUE_USER_AUD">
+      <column name="PRIMARY_SITE_ID" type="${int.type}"/>
+      <column name="primarySite_MOD" type="${bit.type}"/>
+    </addColumn>
+  </changeSet>
 </databaseChangeLog>

@@ -57,6 +57,12 @@
 
     <property name="manualSpecLabelEnabled" column="MANUAL_SPEC_LABEL_ALLOWED"/>
 
+    <property name="bulkPartRegEnabled" column="BULK_PART_REG_ALLOWED"/>
+
+    <property name="specimenCentric" column="SPECIMEN_CENTRIC"/>
+
+    <property name="barcodingEnabled" column="BARCODING_ENABLED"/>
+
     <property name="unsignedConsentDocumentURL" column="UNSIGNED_CONSENT_DOC_URL"/>
 
     <property name="containerSelectionStrategy" column="CONTAINER_SEL_STRATEGY"/>
@@ -92,7 +98,7 @@
 
     <set name="consentTier" table="CATISSUE_CONSENT_TIER" inverse="true" cascade="all-delete-orphan" order-by="id">
       <key column="COLL_PROTOCOL_ID"/>
-      <one-to-many class="com.krishagni.catissueplus.core.biospecimen.domain.ConsentTier"/>
+      <one-to-many class="com.krishagni.catissueplus.core.biospecimen.domain.CpConsentTier"/>
       <filter name="activeEntity"/>
     </set>
 
@@ -243,7 +249,7 @@
       select 
         ct
       from 
-        com.krishagni.catissueplus.core.biospecimen.domain.ConsentTier ct
+        com.krishagni.catissueplus.core.biospecimen.domain.CpConsentTier ct
       where 
         ct.id = :consentId
     </query>
@@ -279,7 +285,7 @@
 
     <query name="getRepoIdsByCps">
       select 
-        site.id
+        cp.id, site.id
       from
         com.krishagni.catissueplus.core.biospecimen.domain.CollectionProtocol cp
         join cp.sites cpSite
@@ -297,6 +303,15 @@
         cp.endDate is not null and
         cp.endDate between :fromDate and :toDate and
         cp.activityStatus = 'Active'
+    </query>
+
+    <query name="getBarcodingEnabledCpIds">
+      select
+        cp.id
+      from
+        com.krishagni.catissueplus.core.biospecimen.domain.CollectionProtocol cp
+      where
+        cp.barcodingEnabled = true
     </query>
   </class>
 </hibernate-mapping>

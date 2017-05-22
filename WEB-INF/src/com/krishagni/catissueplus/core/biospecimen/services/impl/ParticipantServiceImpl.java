@@ -5,7 +5,13 @@ import java.util.List;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.InitializingBean;
 
+import com.krishagni.catissueplus.core.biospecimen.ConfigParams;
+import com.krishagni.catissueplus.core.biospecimen.domain.CollectionProtocolRegistration;
 import com.krishagni.catissueplus.core.biospecimen.domain.Participant;
 import com.krishagni.catissueplus.core.biospecimen.domain.factory.ParticipantErrorCode;
 import com.krishagni.catissueplus.core.biospecimen.domain.factory.ParticipantFactory;
@@ -16,25 +22,29 @@ import com.krishagni.catissueplus.core.biospecimen.events.PmiDetail;
 import com.krishagni.catissueplus.core.biospecimen.matching.ParticipantLookupLogic;
 import com.krishagni.catissueplus.core.biospecimen.repository.DaoFactory;
 import com.krishagni.catissueplus.core.biospecimen.services.ParticipantService;
+import com.krishagni.catissueplus.core.common.OpenSpecimenAppCtxProvider;
 import com.krishagni.catissueplus.core.common.PlusTransactional;
+import com.krishagni.catissueplus.core.common.access.AccessCtrlMgr;
 import com.krishagni.catissueplus.core.common.errors.ErrorType;
 import com.krishagni.catissueplus.core.common.errors.OpenSpecimenException;
 import com.krishagni.catissueplus.core.common.events.RequestEvent;
 import com.krishagni.catissueplus.core.common.events.ResponseEvent;
+import com.krishagni.catissueplus.core.common.service.ConfigChangeListener;
+import com.krishagni.catissueplus.core.common.service.ConfigurationService;
 import com.krishagni.catissueplus.core.common.service.MpiGenerator;
 
-public class ParticipantServiceImpl implements ParticipantService {
+public class ParticipantServiceImpl implements ParticipantService, InitializingBean {
+	private static Log logger = LogFactory.getLog(ParticipantServiceImpl.class);
+
 	private DaoFactory daoFactory;
 
 	private ParticipantFactory participantFactory;
-	
-	private ParticipantLookupLogic participantLookupLogic;
-	
-	private ParticipantLookupLogic remoteParticipantRegistry;
 
-	public void setParticipantLookupLogic(ParticipantLookupLogic participantLookupLogic) {
-		this.participantLookupLogic = participantLookupLogic;
-	}
+	private ParticipantLookupLogic defaultParticipantLookupFlow;
+
+	private ParticipantLookupLogic participantLookupLogic;
+
+	private ConfigurationService cfgSvc;
 
 	public void setDaoFactory(DaoFactory daoFactory) {
 		this.daoFactory = daoFactory;
@@ -44,8 +54,12 @@ public class ParticipantServiceImpl implements ParticipantService {
 		this.participantFactory = participantFactory;
 	}
 
-	public void setRemoteParticipantRegistry(ParticipantLookupLogic remoteParticipantRegistry) {
-		this.remoteParticipantRegistry = remoteParticipantRegistry;
+	public void setDefaultParticipantLookupFlow(ParticipantLookupLogic defaultParticipantLookupFlow) {
+		this.defaultParticipantLookupFlow = defaultParticipantLookupFlow;
+	}
+
+	public void setCfgSvc(ConfigurationService cfgSvc) {
+		this.cfgSvc = cfgSvc;
 	}
 
 	@Override
@@ -136,12 +150,18 @@ public class ParticipantServiceImpl implements ParticipantService {
 	@Override
 	@PlusTransactional
 	public ResponseEvent<List<MatchedParticipant>> getMatchingParticipants(RequestEvent<ParticipantDetail> req) {
-		List<MatchedParticipant> result = participantLookupLogic.getMatchingParticipants(req.getPayload());
-		if (CollectionUtils.isEmpty(result) && remoteParticipantRegistry != null) {
-			result = remoteParticipantRegistry.getMatchingParticipants(req.getPayload());
-		}
+		try {
+			List<MatchedParticipant> matchedParticipants = getParticipantLookupLogic().getMatchingParticipants(req.getPayload());
+			if (req.getPayload().isReqRegInfo()) {
+				addRegInfo(matchedParticipants);
+			}
 
-		return ResponseEvent.response(result);
+			return ResponseEvent.response(matchedParticipants);
+		} catch (OpenSpecimenException ose) {
+			return ResponseEvent.error(ose);
+		} catch (Exception e) {
+			return ResponseEvent.serverError(e);
+		}
 	}
 	
 	public void createParticipant(Participant participant) {
@@ -200,7 +220,17 @@ public class ParticipantServiceImpl implements ParticipantService {
 			return ParticipantDetail.from(existing, false);
 		}
 	}
-	
+
+	@Override
+	public void afterPropertiesSet() throws Exception {
+		cfgSvc.registerChangeListener(ConfigParams.MODULE, new ConfigChangeListener() {
+			@Override
+			public void onConfigChange(String name, String value) {
+				participantLookupLogic = null;
+			}
+		});
+	}
+
 	private Participant getParticipant(ParticipantDetail detail, boolean forUpdate) {
 		Participant result = null;
 		if (detail.getId() != null) {
@@ -234,5 +264,68 @@ public class ParticipantServiceImpl implements ParticipantService {
 		}
 		
 		return result;
+	}
+
+	private ParticipantLookupLogic getParticipantLookupLogic() {
+		if (participantLookupLogic == null) {
+			initParticipantLookupFlow(cfgSvc.getStrSetting(ConfigParams.MODULE, ConfigParams.PARTICIPANT_LOOKUP_FLOW));
+		}
+
+		return participantLookupLogic;
+	}
+
+	private void initParticipantLookupFlow(String lookupFlow) {
+		if (StringUtils.isBlank(lookupFlow)) {
+			participantLookupLogic = defaultParticipantLookupFlow;
+			return;
+		}
+
+		ParticipantLookupLogic result = null;
+		try {
+			lookupFlow = lookupFlow.trim();
+			if (lookupFlow.startsWith("bean:")) {
+				result = OpenSpecimenAppCtxProvider.getBean(lookupFlow.substring("bean:".length()).trim());
+			} else {
+				String className = lookupFlow;
+				if (lookupFlow.startsWith("class:")) {
+					className = lookupFlow.substring("class:".length()).trim();
+				}
+
+
+				Class<ParticipantLookupLogic> klass = (Class<ParticipantLookupLogic>) Class.forName(className);
+				result = BeanUtils.instantiate(klass);
+			}
+		} catch (Exception e) {
+			logger.info("Invalid participant lookup flow configuration setting: " + lookupFlow, e);
+		}
+
+		if (result == null) {
+			throw OpenSpecimenException.userError(ParticipantErrorCode.INVALID_LOOKUP_FLOW, lookupFlow);
+		}
+
+		participantLookupLogic = result;
+	}
+
+	//
+	// TODO: We are assuming there won't be many matched participants;
+	// If this is slow then we need to issue a single query to obtain
+	// reg info of all matched participants at one go
+	//
+	private void addRegInfo(List<MatchedParticipant> matchedParticipants) {
+		matchedParticipants.forEach(this::addRegInfo);
+	}
+
+	private void addRegInfo(MatchedParticipant matchedParticipant) {
+		ParticipantDetail detail = matchedParticipant.getParticipant();
+		if (detail.getId() == null) {
+			return;
+		}
+
+		Participant participant = daoFactory.getParticipantDao().getById(detail.getId());
+		detail.setRegisteredCps(ParticipantDetail.getCprSummaries(getCprs(participant)));
+	}
+
+	private List<CollectionProtocolRegistration> getCprs(Participant participant) {
+		return AccessCtrlMgr.getInstance().getAccessibleCprs(participant.getCprs());
 	}
 }

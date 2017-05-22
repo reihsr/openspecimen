@@ -7,7 +7,7 @@
             <span>{{cpr.cpShortTitle}}</span>
           </a>
         </li>
-        <li>
+        <li ng-if="!cp.specimenCentric">
           <a ui-sref="participant-detail.overview({cprId: cpr.id})">
             <ng-switch on="!!(cpr.participant.lastName || cpr.participant.firstName)">
               <span ng-switch-when="true"> {{cpr.participant.firstName}} {{cpr.participant.lastName}} </span>
@@ -16,7 +16,7 @@
             <span>({{cpr.ppid}})</span>
           </a>
         </li>
-        <li>
+        <li ng-if="!cp.specimenCentric">
           <a ui-sref="visit-detail.overview({visitId: visit.id, eventId: visit.eventId})">
             <span>T{{visit.eventPoint}}: {{visit.eventLabel}}</span>
           </a>
@@ -120,6 +120,14 @@
       </div>
     </div>
 
+    <div class="form-group" ng-if="barcodingEnabled">
+      <label class="col-xs-3 control-label" translate="specimens.barcode">Barcode</label>
+      <div class="col-xs-6">
+        <input ng-model="derivative.barcode" class="form-control"
+          type="text" placeholder="{{'specimens.barcode' | translate}}">
+      </div>
+    </div>
+
     <div class="form-group">
       <label class="col-xs-3 control-label" translate="specimens.qty">Initial Quantity</label>
       <div class="col-xs-6">
@@ -168,6 +176,26 @@
           required placeholder="{{'specimens.pathology_status' | translate}}">
         </os-pvs>
         <div os-field-error field="derivativeForm.pathology"></div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-xs-3 control-label" translate="specimens.anatomic_site">Anatomic Site</label>
+      <div class="col-xs-6">
+        <os-pvs name="anatomicSite" ng-model="derivative.anatomicSite" attribute="anatomic-site" 
+          show-only-leaf-values="true" required placeholder="{{'specimens.anatomic_site' | translate}}">
+        </os-pvs>
+        <div os-field-error field="derivativeForm.anatomicSite"></div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-xs-3 control-label" translate="specimens.laterality">Laterality</label>
+      <div class="col-xs-6">
+        <os-pvs name="laterality" ng-model="derivative.laterality" attribute="laterality"
+          required placeholder="{{'specimens.laterality' | translate}}">
+        </os-pvs>
+        <div os-field-error field="derivativeForm.laterality"></div>
       </div>
     </div>
 

@@ -1,7 +1,9 @@
 package com.krishagni.catissueplus.core.administrative.services.impl;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -10,8 +12,10 @@ import org.apache.commons.logging.LogFactory;
 import org.hibernate.Criteria;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.hibernate.criterion.Disjunction;
 import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
+import org.hibernate.sql.JoinType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
 
@@ -20,6 +24,7 @@ import com.krishagni.catissueplus.core.administrative.events.TenantDetail;
 import com.krishagni.catissueplus.core.administrative.services.ContainerSelectionStrategy;
 import com.krishagni.catissueplus.core.biospecimen.domain.CollectionProtocol;
 import com.krishagni.catissueplus.core.biospecimen.repository.DaoFactory;
+import com.krishagni.catissueplus.core.common.Pair;
 
 @Configurable
 public class RecentlyUsedContainerSelectionStrategy implements ContainerSelectionStrategy {
@@ -33,7 +38,7 @@ public class RecentlyUsedContainerSelectionStrategy implements ContainerSelectio
 
 	private CollectionProtocol cp;
 
-	private StorageContainer recentlyUsed = null;
+	private Map<String, StorageContainer> recentlyUsed = new HashMap<>();
 
 	@Override
 	public StorageContainer getContainer(TenantDetail criteria, Boolean aliquotsInSameContainer) {
@@ -42,7 +47,7 @@ public class RecentlyUsedContainerSelectionStrategy implements ContainerSelectio
 			numFreeLocs = criteria.getNumOfAliquots();
 		}
 
-		StorageContainer container = recentlyUsed;
+		StorageContainer container = recentlyUsed.get(criteria.getKey());
 		if (container == null) {
 			container = getRecentlySelectedContainer(criteria);
 		}
@@ -55,7 +60,11 @@ public class RecentlyUsedContainerSelectionStrategy implements ContainerSelectio
 			container = nextContainer(container, criteria, numFreeLocs);
 		}
 
-		return (recentlyUsed = container);
+		if (container != null) {
+			recentlyUsed.put(criteria.getKey(), container);
+		}
+
+		return container;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -88,9 +97,24 @@ public class RecentlyUsedContainerSelectionStrategy implements ContainerSelectio
 			.createAlias("spmn.visit", "visit")
 			.createAlias("visit.registration", "reg")
 			.createAlias("reg.collectionProtocol", "cp")
+			.createAlias("site", "site")
+			.createAlias("compAllowedCps", "allowedCp", JoinType.LEFT_OUTER_JOIN)
 			.add(Restrictions.eq("cp.id", criteria.getCpId()))
+			.add(getSiteCpRestriction(criteria.getSiteCps()))
 			.addOrder(Order.desc("pos.id"))
 			.setMaxResults(1);
+	}
+
+	private Disjunction getSiteCpRestriction(Set<Pair<Long, Long>> siteCps) {
+		Disjunction disjunction = Restrictions.disjunction();
+		for (Pair<Long, Long> siteCp : siteCps) {
+			disjunction.add(Restrictions.and(
+					Restrictions.eq("site.id", siteCp.first()),
+					Restrictions.or(Restrictions.isNull("allowedCp.id"), Restrictions.eq("allowedCp.id", siteCp.second()))
+			));
+		}
+
+		return disjunction;
 	}
 
 	private StorageContainer nextContainer(StorageContainer last, TenantDetail crit, int freeLocs) {
@@ -113,7 +137,7 @@ public class RecentlyUsedContainerSelectionStrategy implements ContainerSelectio
 		if (last != null) {
 			for (StorageContainer container : children) {
 				childIdx++;
-				if (container.getPosition().getPosition() == last.getPosition().getPosition()) {
+				if (container.getPosition().getPosition().equals(last.getPosition().getPosition())) {
 					logger.info(String.format("Found container %s at %d", container.getName(), childIdx));
 					break;
 				}
@@ -149,6 +173,6 @@ public class RecentlyUsedContainerSelectionStrategy implements ContainerSelectio
 		}
 
 		return container.canContainSpecimen(cp, crit.getSpecimenClass(), crit.getSpecimenType()) &&
-				container.freePositionsCount() >= freeLocs;
+				container.hasFreePositionsForReservation(freeLocs);
 	}
 }

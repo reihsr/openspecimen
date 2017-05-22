@@ -1,5 +1,6 @@
 angular.module('os.biospecimen.specimen')
-  .factory('SpecimenUtil', function($modal, $q, Specimen, PvManager, Alerts, Util) {
+  .factory('SpecimenUtil', function($modal, $q, $parse, $location, Specimen, PvManager, Alerts, Util) {
+    var URL_LEN_LIMIT = 8192; // 8 KB
 
     function collectAliquots(scope) {
       var spec = scope.aliquotSpec;
@@ -56,7 +57,7 @@ angular.module('os.biospecimen.specimen')
 
       var aliquots = [];
       for (var i = 0; i < spec.noOfAliquots; ++i) {
-        var clonedAlqt = angular.copy(aliquot);
+        var clonedAlqt = new Specimen(aliquot);
         clonedAlqt.extensionDetail = extensionDetail;
         aliquots.push(clonedAlqt);
       }
@@ -139,6 +140,8 @@ angular.module('os.biospecimen.specimen')
         visitId: scope.visit.id,
         cpId: scope.visit.cpId,
         pathology: scope.parentSpecimen.pathology,
+        anatomicSite: scope.parentSpecimen.anatomicSite,
+        laterality: scope.parentSpecimen.laterality, 
         closeParent: false,
         createdOn : new Date(),
         incrParentFreezeThaw: 1,
@@ -200,12 +203,54 @@ angular.module('os.biospecimen.specimen')
       );
     }
 
-    function getSpecimens(labels) {
-      return Specimen.listByLabels(labels).then(
+    function getSpecimens(labels, filterOpts, errorOpts) {
+      filterOpts = filterOpts || {};
+      filterOpts.label = labels;
+
+      if (getUrlLength(filterOpts) >= URL_LEN_LIMIT) {
+        Alerts.error("specimens.too_many_specimens");
+        return deferred(undefined);
+      }
+
+      return Specimen.query(filterOpts).then(
         function(specimens) {
-          return resolveSpecimens(labels, specimens);
+          return resolveSpecimens(labels, filterOpts.barcode, specimens, errorOpts);
         }
       );
+    }
+
+    function getUrlLength(filterOpts) {
+      var url = Specimen.url();
+      if (url.indexOf('http') != 0) {
+        var viewUrl = $location.absUrl();
+        url = viewUrl.substr(0, viewUrl.indexOf('#')) + url;
+      }
+
+      url += jQuery.param(filterOpts);
+      return url.length;
+    }
+
+    function ensureAllBarcodesExist(barcodes, specimens, errorOpts) {
+      var spmnsMap = specimens.reduce(
+        function(map, spmn) {
+          map[spmn.barcode] = spmn;
+          return map;
+        },
+        {}
+      );
+
+      var notFoundBarcodes = barcodes.filter(
+        function(barcode) {
+          return !spmnsMap[barcode];
+        }
+      );
+
+      if (notFoundBarcodes.length != 0) {
+        showError(notFoundBarcodes, errorOpts);
+        return deferred(undefined);
+      }
+
+      return deferred(specimens);
     }
 
     function deferred(resp) {
@@ -214,7 +259,11 @@ angular.module('os.biospecimen.specimen')
       return deferred.promise;
     }
 
-    function resolveSpecimens(labels, specimens) {
+    function resolveSpecimens(labels, barcodes, specimens, errorOpts) {
+      if (!labels || labels.length == 0) {
+        return ensureAllBarcodesExist(barcodes, specimens, errorOpts);
+      }
+
       var specimensMap = {};
       angular.forEach(specimens, function(spmn) {
         if (!specimensMap[spmn.label]) {
@@ -249,7 +298,7 @@ angular.module('os.biospecimen.specimen')
       });
 
       if (notFoundLabels.length != 0) {
-        Alerts.error('specimens.specimen_not_found', {label: notFoundLabels.join(', ')});
+        showError(notFoundLabels, errorOpts);
         return deferred(undefined);
       }
 
@@ -279,6 +328,14 @@ angular.module('os.biospecimen.specimen')
           );
         }
       );
+    }
+
+    function showError(notFoundLabels, errorOpts) {
+      errorOpts = errorOpts || {};
+      errorOpts.code = errorOpts.code || 'specimens.specimen_not_found';
+      errorOpts.params = errorOpts.params || {};
+      errorOpts.params.label = notFoundLabels.join(', ');
+      Alerts.error(errorOpts.code, errorOpts.params);
     }
 
     function showInsufficientQtyWarning(opts) {
@@ -315,6 +372,63 @@ angular.module('os.biospecimen.specimen')
       });
     }
 
+    function sdeGroupSpecimens(baseFields, groups, specimens) {
+      var result = [];
+
+      for (var i = 0; i < groups.length; ++i) {
+        if (specimens.length == 0) {
+          break;
+        }
+
+        var group = groups[i];
+        var selectedSpmns = [];
+        if (!group.criteria) {
+          selectedSpmns = specimens.map(function(spmn) { return {specimen: spmn} });
+          specimens.length = 0;
+        } else {
+          var exprs = group.criteria.rules.map(
+            function(rule) {
+              if (rule.op == 'exists') {
+                return '!!' + rule.field;
+              } else if (rule.op == 'not_exist') {
+                return '!' + rule.field;
+              } else {
+                return rule.field + ' ' + rule.op + ' ' + rule.value;
+              }
+            }
+          );
+
+          var expr = $parse(exprs.join(group.criteria.op == 'AND' ? ' && ' : ' || '));
+          for (var j = specimens.length - 1; j >= 0; j--) {
+            if (expr({specimen: specimens[j]})) {
+              selectedSpmns.unshift({specimen: specimens[j]});
+              specimens.splice(j, 1);
+            }
+          }
+        }
+
+        if (selectedSpmns.length != 0) {
+          result.push({
+            multiple: true,
+            title: group.title,
+            fields: { table: group.fields },
+            baseFields: baseFields,
+            input: selectedSpmns,
+            opts: { static: true }
+          });
+        }
+      }
+
+      if (specimens.length > 0) {
+        result.push({
+          input: specimens.map(function(specimen) { return {specimen: specimen}; }),
+          noMatch: true
+        });
+      }
+
+      return result;
+    }
+
     return {
       collectAliquots: collectAliquots,
 
@@ -332,7 +446,9 @@ angular.module('os.biospecimen.specimen')
 
       resolveSpecimens: resolveSpecimens,
 
-      showInsufficientQtyWarning: showInsufficientQtyWarning
+      showInsufficientQtyWarning: showInsufficientQtyWarning,
+
+      sdeGroupSpecimens: sdeGroupSpecimens
     };
   })
   .controller('ResolveSpecimensCtrl', function($scope, $modalInstance, labels, Alerts) {

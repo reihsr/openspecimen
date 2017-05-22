@@ -48,8 +48,9 @@
     </field>  
 
     <field>
+      <multiple>true</multiple>
       <caption>#getMessage("visit_clinical_diagnosis")</caption>
-      <attribute>clinicalDiagnosis</attribute>
+      <attribute>clinicalDiagnoses</attribute>
     </field>  
 
     <field>
@@ -65,6 +66,11 @@
     <field>
       <caption>#getMessage("visit_surgical_pathology_number")</caption>
       <attribute>surgicalPathologyNumber</attribute>
+    </field>
+    
+    <field>
+      <caption>#getMessage("visit_spr_file_name")</caption>
+      <attribute>sprName</attribute>
     </field>  
 
     <record>

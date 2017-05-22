@@ -12,8 +12,16 @@ public enum ImportJobErrorCode implements ErrorCode {
 	OUTPUT_FILE_NOT_CREATED,
 	
 	OBJ_SCHEMA_NOT_FOUND,
+
+	RECORD_PARSE_ERROR,
+
+	NOT_IN_PROGRESS,
+
+	INVALID_DATE_FORMAT,
+
+	INVALID_TIME_FORMAT,
 	
-	RECORD_PARSE_ERROR;
+	CSV_NOT_FOUND_IN_ZIP;
 
 	@Override
 	public String code() {		

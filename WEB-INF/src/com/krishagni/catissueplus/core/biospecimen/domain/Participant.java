@@ -25,10 +25,14 @@ import com.krishagni.catissueplus.core.common.util.Utility;
 
 @Audited
 public class Participant extends BaseExtensionEntity {
+	private static final String DEF_SOURCE = "OpenSpecimen";
+
 	private static final String ENTITY_NAME = "participant";
 
 	public static final String EXTN = "ParticipantExtension";
-	
+
+	private String source = DEF_SOURCE;
+
 	private String lastName;
 
 	private String firstName;
@@ -41,9 +45,9 @@ public class Participant extends BaseExtensionEntity {
 
 	private String sexGenotype;
 
-	private Set<String> races = new HashSet<String>();
+	private Set<String> races = new HashSet<>();
 
-	private String ethnicity;
+	private Set<String> ethnicities = new HashSet<>();
 
 	private String uid;
 
@@ -60,6 +64,14 @@ public class Participant extends BaseExtensionEntity {
 	private Set<CollectionProtocolRegistration> cprs = new HashSet<>();
 
 	private transient Long cpId = -1L;
+
+	public String getSource() {
+		return StringUtils.isBlank(source) ? DEF_SOURCE : source;
+	}
+
+	public void setSource(String source) {
+		this.source = source;
+	}
 
 	public String getLastName() {
 		return lastName;
@@ -117,12 +129,12 @@ public class Participant extends BaseExtensionEntity {
 		this.races = races;
 	}
 
-	public String getEthnicity() {
-		return ethnicity;
+	public Set<String> getEthnicities() {
+		return ethnicities;
 	}
 
-	public void setEthnicity(String ethnicity) {
-		this.ethnicity = ethnicity;
+	public void setEthnicities(Set<String> ethnicities) {
+		this.ethnicities = ethnicities;
 	}
 
 	public String getUid() {
@@ -204,10 +216,10 @@ public class Participant extends BaseExtensionEntity {
 		setSexGenotype(participant.getSexGenotype());
 		setVitalStatus(participant.getVitalStatus());
 		setGender(participant.getGender());
-		setEthnicity(participant.getEthnicity());
 		setBirthDate(participant.getBirthDate());
 		setDeathDate(participant.getDeathDate());
 		setExtension(participant.getExtension());
+		CollectionUpdater.update(getEthnicities(), participant.getEthnicities());
 		CollectionUpdater.update(getRaces(), participant.getRaces());
 		updatePmis(participant);
 	}

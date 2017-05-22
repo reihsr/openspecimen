@@ -19,6 +19,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -40,7 +41,8 @@ import com.krishagni.catissueplus.core.biospecimen.domain.AliquotSpecimensRequir
 import com.krishagni.catissueplus.core.biospecimen.domain.CollectionProtocol;
 import com.krishagni.catissueplus.core.biospecimen.domain.CollectionProtocolEvent;
 import com.krishagni.catissueplus.core.biospecimen.domain.CollectionProtocolRegistration;
-import com.krishagni.catissueplus.core.biospecimen.domain.ConsentTier;
+import com.krishagni.catissueplus.core.biospecimen.domain.ConsentStatement;
+import com.krishagni.catissueplus.core.biospecimen.domain.CpConsentTier;
 import com.krishagni.catissueplus.core.biospecimen.domain.CpReportSettings;
 import com.krishagni.catissueplus.core.biospecimen.domain.CpWorkflowConfig;
 import com.krishagni.catissueplus.core.biospecimen.domain.CpWorkflowConfig.Workflow;
@@ -49,6 +51,7 @@ import com.krishagni.catissueplus.core.biospecimen.domain.Specimen;
 import com.krishagni.catissueplus.core.biospecimen.domain.SpecimenRequirement;
 import com.krishagni.catissueplus.core.biospecimen.domain.Visit;
 import com.krishagni.catissueplus.core.biospecimen.domain.factory.CollectionProtocolFactory;
+import com.krishagni.catissueplus.core.biospecimen.domain.factory.ConsentStatementErrorCode;
 import com.krishagni.catissueplus.core.biospecimen.domain.factory.CpErrorCode;
 import com.krishagni.catissueplus.core.biospecimen.domain.factory.CpReportSettingsFactory;
 import com.krishagni.catissueplus.core.biospecimen.domain.factory.CpeErrorCode;
@@ -84,9 +87,9 @@ import com.krishagni.catissueplus.core.common.access.AccessCtrlMgr;
 import com.krishagni.catissueplus.core.common.access.AccessCtrlMgr.ParticipantReadAccess;
 import com.krishagni.catissueplus.core.common.errors.ErrorType;
 import com.krishagni.catissueplus.core.common.errors.OpenSpecimenException;
-import com.krishagni.catissueplus.core.common.events.DeleteEntityOp;
+import com.krishagni.catissueplus.core.common.events.BulkDeleteEntityOp;
+import com.krishagni.catissueplus.core.common.events.BulkDeleteEntityResp;
 import com.krishagni.catissueplus.core.common.events.DependentEntityDetail;
-import com.krishagni.catissueplus.core.common.events.EntityDeleteResp;
 import com.krishagni.catissueplus.core.common.events.RequestEvent;
 import com.krishagni.catissueplus.core.common.events.ResponseEvent;
 import com.krishagni.catissueplus.core.common.service.EmailService;
@@ -282,7 +285,7 @@ public class CollectionProtocolServiceImpl implements CollectionProtocolService,
 			if (!existingCp.isConsentsWaived().equals(cp.isConsentsWaived())) {
 			  ensureConsentTierIsEmpty(existingCp, ose);
 			}
-		
+
 			ose.checkAndThrow();
 			
 			User oldPi = existingCp.getPrincipalInvestigator();
@@ -401,21 +404,26 @@ public class CollectionProtocolServiceImpl implements CollectionProtocolService,
 	
 	@Override
 	@PlusTransactional
-	public ResponseEvent<EntityDeleteResp<CollectionProtocolDetail>> deleteCollectionProtocol(RequestEvent<DeleteEntityOp> req) {
+	public ResponseEvent<BulkDeleteEntityResp<CollectionProtocolDetail>> deleteCollectionProtocols(RequestEvent<BulkDeleteEntityOp> req) {
 		try {
-			DeleteEntityOp crit = req.getPayload();
+			BulkDeleteEntityOp crit = req.getPayload();
 
-			CollectionProtocol cp = daoFactory.getCollectionProtocolDao().getById(crit.getId());
-			if (cp == null) {
-				return ResponseEvent.userError(CpErrorCode.NOT_FOUND, crit.getId());
+			Set<Long> cpIds = crit.getIds();
+			List<CollectionProtocol> cps = daoFactory.getCollectionProtocolDao().getByIds(cpIds);
+			if (crit.getIds().size() != cps.size()) {
+				cps.forEach(cp -> cpIds.remove(cp.getId()));
+				throw OpenSpecimenException.userError(CpErrorCode.DOES_NOT_EXIST, cpIds);
 			}
 
-			AccessCtrlMgr.getInstance().ensureDeleteCpRights(cp);
-			boolean completed = crit.isForceDelete() ? forceDeleteCp(cp) : deleteCp(cp);
+			for (CollectionProtocol cp : cps) {
+				AccessCtrlMgr.getInstance().ensureDeleteCpRights(cp);
+			}
 
-			EntityDeleteResp<CollectionProtocolDetail> resp = new EntityDeleteResp<>();
+			boolean completed = crit.isForceDelete() ? forceDeleteCps(cps) : deleteCps(cps);
+
+			BulkDeleteEntityResp<CollectionProtocolDetail> resp = new BulkDeleteEntityResp<>();
 			resp.setCompleted(completed);
-			resp.setEntity(CollectionProtocolDetail.from(cp));
+			resp.setEntities(CollectionProtocolDetail.from(cps));
 			return ResponseEvent.response(resp);
 		} catch (OpenSpecimenException ose) {
 			return ResponseEvent.error(ose);
@@ -499,6 +507,25 @@ public class CollectionProtocolServiceImpl implements CollectionProtocolService,
 			return ResponseEvent.serverError(e);
 		}
 	}
+
+	@Override
+	@PlusTransactional
+	public ResponseEvent<Boolean> isSpecimenBarcodingEnabled() {
+		try {
+			boolean isEnabled = ConfigUtil.getInstance().getBoolSetting(
+					ConfigParams.MODULE, ConfigParams.ENABLE_SPMN_BARCODING, false);
+
+			if (!isEnabled) {
+				isEnabled = daoFactory.getCollectionProtocolDao().anyBarcodingEnabledCpExists();
+			}
+
+			return ResponseEvent.response(isEnabled);
+		} catch (OpenSpecimenException ose) {
+			return ResponseEvent.error(ose);
+		} catch (Exception e) {
+			return ResponseEvent.serverError(e);
+		}
+	}
 	
 	@Override
 	@PlusTransactional
@@ -523,11 +550,9 @@ public class CollectionProtocolServiceImpl implements CollectionProtocolService,
 	@Override
 	@PlusTransactional
 	public ResponseEvent<ConsentTierDetail> updateConsentTier(RequestEvent<ConsentTierOp> req) {
-		ConsentTierOp opDetail = req.getPayload();
-		
-		Long cpId = opDetail.getCpId();
 		try {
-			CollectionProtocol cp = daoFactory.getCollectionProtocolDao().getById(cpId);
+			ConsentTierOp opDetail = req.getPayload();
+			CollectionProtocol cp = daoFactory.getCollectionProtocolDao().getById(opDetail.getCpId());
 			if (cp == null) {
 				return ResponseEvent.userError(CpErrorCode.NOT_FOUND);
 			}
@@ -539,16 +564,19 @@ public class CollectionProtocolServiceImpl implements CollectionProtocolService,
 			}
 			
 			ConsentTierDetail input = opDetail.getConsentTier();
-			ConsentTier resp = null;			
+			CpConsentTier resp = null;			
+			ConsentStatement stmt = null;
 			switch (opDetail.getOp()) {
 				case ADD:
 					ensureUniqueConsentStatement(input, cp);
-					resp = cp.addConsentTier(input.toConsentTier());
+					stmt = getStatement(input.getStatementId(), input.getStatementCode(), input.getStatement());
+					resp = cp.addConsentTier(getConsentTierObj(input.getId(), stmt));
 					break;
 					
 				case UPDATE:
 					ensureUniqueConsentStatement(input, cp);
-					resp = cp.updateConsentTier(input.toConsentTier());
+					stmt = getStatement(input.getStatementId(), input.getStatementCode(), input.getStatement());
+					resp = cp.updateConsentTier(getConsentTierObj(input.getId(), stmt));
 					break;
 					
 				case REMOVE:
@@ -573,7 +601,7 @@ public class CollectionProtocolServiceImpl implements CollectionProtocolService,
 	public ResponseEvent<List<DependentEntityDetail>> getConsentDependentEntities(RequestEvent<ConsentTierDetail> req) {
 		try {
 			ConsentTierDetail consentTierDetail = req.getPayload();
-			ConsentTier consentTier = getConsentTier(consentTierDetail);
+			CpConsentTier consentTier = getConsentTier(consentTierDetail);
 			return ResponseEvent.response(consentTier.getDependentEntities());
 		} catch (OpenSpecimenException ose) {
 			return ResponseEvent.error(ose);
@@ -1179,6 +1207,32 @@ public class CollectionProtocolServiceImpl implements CollectionProtocolService,
 	}
 
 	@Override
+	@PlusTransactional
+	public ResponseEvent<Collection<Object>> getListExprValues(RequestEvent<Map<String, Object>> req) {
+		try {
+			Map<String, Object> listReq = req.getPayload();
+			String listName = (String)listReq.get("listName");
+			Function<Map<String, Object>, ListConfig> configFn = listConfigFns.get(listName);
+			if (configFn == null) {
+				return ResponseEvent.response(null);
+			}
+
+			ListConfig cfg = configFn.apply(listReq);
+			if (cfg == null) {
+				return ResponseEvent.response(null);
+			}
+
+			String expr = (String)listReq.get("expr");
+			String searchTerm = (String)listReq.get("searchTerm");
+			return ResponseEvent.response(listGenerator.getExpressionValues(cfg, expr, searchTerm));
+		} catch (OpenSpecimenException ose) {
+			return ResponseEvent.error(ose);
+		} catch (Exception e) {
+			return ResponseEvent.serverError(e);
+		}
+	}
+
+	@Override
 	public String getObjectName() {
 		return "cp";
 	}
@@ -1482,10 +1536,10 @@ public class CollectionProtocolServiceImpl implements CollectionProtocolService,
 		return new String[] {"Coordinator"};
 	}
 	
-	private ConsentTier getConsentTier(ConsentTierDetail consentTierDetail) {
+	private CpConsentTier getConsentTier(ConsentTierDetail consentTierDetail) {
 		CollectionProtocolDao cpDao = daoFactory.getCollectionProtocolDao();
 		
-		ConsentTier consentTier = null;
+		CpConsentTier consentTier = null;
 		if (consentTierDetail.getId() != null) {
 			consentTier = cpDao.getConsentTier(consentTierDetail.getId());
 		} else if (StringUtils.isNotBlank(consentTierDetail.getStatement()) && consentTierDetail.getCpId() != null ) {
@@ -1500,14 +1554,30 @@ public class CollectionProtocolServiceImpl implements CollectionProtocolService,
 	}
 
 	private void ensureUniqueConsentStatement(ConsentTierDetail consentTierDetail, CollectionProtocol cp) {
-		for (ConsentTier consentTier : cp.getConsentTier()) {
-			if (consentTierDetail.getStatement().equals(consentTier.getStatement()) && 
-					consentTier.getId() != consentTierDetail.getId()) {
-				throw OpenSpecimenException.userError(CpErrorCode.DUP_CONSENT, consentTier.getStatement());
-			}
+		Predicate<CpConsentTier> findFn;
+		if (consentTierDetail.getStatementId() != null) {
+			findFn = (t) -> t.getStatement().getId().equals(consentTierDetail.getStatementId());
+		} else if (StringUtils.isNotBlank(consentTierDetail.getStatementCode())) {
+			findFn = (t) -> t.getStatement().getCode().equals(consentTierDetail.getStatementCode());
+		} else if (StringUtils.isNotBlank(consentTierDetail.getStatement())) {
+			findFn = (t) -> t.getStatement().getStatement().equals(consentTierDetail.getStatement());
+		} else {
+			throw OpenSpecimenException.userError(ConsentStatementErrorCode.CODE_REQUIRED);
+		}
+
+		CpConsentTier tier = cp.getConsentTier().stream().filter(findFn).findFirst().orElse(null);
+		if (tier != null && !tier.getId().equals(consentTierDetail.getId())) {
+			throw OpenSpecimenException.userError(CpErrorCode.DUP_CONSENT, tier.getStatement().getCode(), cp.getShortTitle());
 		}
 	}
-	
+
+	private CpConsentTier getConsentTierObj(Long id, ConsentStatement stmt) {
+		CpConsentTier tier = new CpConsentTier();
+		tier.setId(id);
+		tier.setStatement(stmt);
+		return tier;
+	}
+
 	private void ensureSpecimensNotCollected(SpecimenRequirement sr) {
 		int count = daoFactory.getSpecimenRequirementDao().getSpecimensCount(sr.getId());
 		if (count > 0) {
@@ -1623,8 +1693,8 @@ public class CollectionProtocolServiceImpl implements CollectionProtocolService,
 			notSameLabels.add(getMsg(labelKey));
 		}
 	}
-	
-	private boolean forceDeleteCp(final CollectionProtocol cp)
+
+	private boolean forceDeleteCps(final List<CollectionProtocol> cps)
 	throws Exception {
 		final Authentication auth = AuthUtil.getAuth();
 
@@ -1632,25 +1702,11 @@ public class CollectionProtocolServiceImpl implements CollectionProtocolService,
 			@Override
 			public Boolean call() throws Exception {
 				SecurityContextHolder.getContext().setAuthentication(auth);
-
-				boolean success = false;
-				String stackTrace = null;
-				try {
-					while (deleteRegistrations(cp));
-					deleteCp(cp);
-					success = true;
-				} catch (Exception ex) {
-					success = false;
-					stackTrace = ExceptionUtils.getStackTrace(ex);
-					throw OpenSpecimenException.serverError(ex);
-				} finally {
-					sendEmail(cp, success, stackTrace);
-				}
-
+				cps.forEach(cp -> forceDeleteCp(cp));
 				return true;
 			}
 		});
-			
+
 		boolean completed = false;
 		try {
 			completed = result.get(30, TimeUnit.SECONDS);
@@ -1659,6 +1715,32 @@ public class CollectionProtocolServiceImpl implements CollectionProtocolService,
 		}
 
 		return completed;
+	}
+
+	private void forceDeleteCp(final CollectionProtocol cp) {
+		boolean success = false;
+		String stackTrace = null;
+		try {
+			while (deleteRegistrations(cp));
+			deleteCp(cp);
+			success = true;
+		} catch (Exception ex) {
+			success = false;
+			stackTrace = ExceptionUtils.getStackTrace(ex);
+
+			if (ex instanceof OpenSpecimenException) {
+				throw ex;
+			} else {
+				throw OpenSpecimenException.serverError(ex);
+			}
+		} finally {
+			sendEmail(cp, success, stackTrace);
+		}
+	}
+
+	private boolean deleteCps(List<CollectionProtocol> cps) {
+		cps.forEach(cp -> deleteCp(cp));
+		return true;
 	}
 	
 	@PlusTransactional
@@ -1874,6 +1956,30 @@ public class CollectionProtocolServiceImpl implements CollectionProtocolService,
 
 		cfg.setStartAt(startAt);
 		cfg.setMaxResults(maxResults);
+	}
+
+	private ConsentStatement getStatement(Long id, String code, String statement) {
+		ConsentStatement stmt = null;
+		Object key = null;
+
+		if (id != null) {
+			key = id;
+			stmt = daoFactory.getConsentStatementDao().getById(id);
+		} else if (StringUtils.isNotBlank(code)) {
+			key = code;
+			stmt = daoFactory.getConsentStatementDao().getByCode(code);
+		} else if (StringUtils.isNotBlank(statement)) {
+			key = statement;
+			stmt = daoFactory.getConsentStatementDao().getByStatement(statement);
+		}
+
+		if (key == null) {
+			throw OpenSpecimenException.userError(ConsentStatementErrorCode.CODE_REQUIRED);
+		} else if (stmt == null) {
+			throw OpenSpecimenException.userError(ConsentStatementErrorCode.NOT_FOUND, key);
+		}
+
+		return stmt;
 	}
 
 	private static final String PPID_MSG                     = "cp_ppid";

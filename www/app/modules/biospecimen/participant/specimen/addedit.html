@@ -8,7 +8,7 @@
             <span>{{cpr.cpShortTitle}}</span>
           </a>
         </li>
-        <li>
+        <li ng-if="!cp.specimenCentric">
           <a ui-sref="participant-detail.overview({cprId: cpr.id})">
             <ng-switch on="!!(cpr.participant.lastName || cpr.participant.firstName)">
               <span ng-switch-when="true"> {{cpr.participant.firstName}} {{cpr.participant.lastName}} </span>
@@ -17,7 +17,7 @@
             <span>({{cpr.ppid}})</span>
           </a>
         </li>
-        <li>
+        <li ng-if="!cp.specimenCentric">
           <a ui-sref="visit-detail.overview({visitId: visit.id, eventId: visit.eventId})">
             T{{visit.eventPoint}}: {{visit.eventLabel}}
           </a>
@@ -26,7 +26,12 @@
 
       <h3 ng-switch on="!!currSpecimen.label">
         <span ng-switch-when="true">{{currSpecimen.label}}</span>
-        <span ng-switch-default>{{currSpecimen.type}} ({{currSpecimen.specimenClass}})</span>
+        <span ng-switch-default>
+          <span ng-switch on="!!currSpecimen.type">
+            <span ng-switch-when="true">{{currSpecimen.type}} ({{currSpecimen.specimenClass}})</span>
+            <span ng-switch-default translate="specimens.new_spmn">New Specimen</span>
+          </span>
+        </span>
       </h3>
     </div>
   </div>
@@ -72,6 +77,14 @@
           ng-required="currSpecimen.status != 'Missed Collection'"
           placeholder="{{'specimens.label' | translate}}"/>
         <div os-field-error field="sform.label"></div>
+      </div>
+    </div>
+
+    <div class="form-group" ng-if="barcodingEnabled">
+      <label class="col-xs-3 control-label" translate="specimens.barcode">Barcode</label>
+      <div class="col-xs-6">
+        <input ng-model="currSpecimen.barcode" class="form-control"
+          type="text" placeholder="{{'specimens.barcode' | translate}}">
       </div>
     </div>
 
@@ -182,17 +195,17 @@
       </div>
     </div>
 
-    <div class="form-group" ng-if="currSpecimen.lineage != 'Aliquot' && !currSpecimen.poolSpecimen">
-      <label class="col-xs-3 control-label" translate="specimens.pathology_status">Pathology Status</label>
-      <div class="col-xs-6">
-        <os-pvs name="pathology" ng-model="currSpecimen.pathology" attribute="pathology-status"
-          required placeholder="{{'specimens.pathology_status' | translate}}">
-        </os-pvs>
-        <div os-field-error field="sform.pathology"></div>
+    <div ng-if="currSpecimen.lineage != 'Aliquot' && !currSpecimen.poolSpecimen">
+      <div class="form-group">
+        <label class="col-xs-3 control-label" translate="specimens.pathology_status">Pathology Status</label>
+        <div class="col-xs-6">
+          <os-pvs name="pathology" ng-model="currSpecimen.pathology" attribute="pathology-status"
+            required placeholder="{{'specimens.pathology_status' | translate}}">
+          </os-pvs>
+          <div os-field-error field="sform.pathology"></div>
+        </div>
       </div>
-    </div>
 
-    <div ng-if="currSpecimen.lineage == 'New' && !currSpecimen.poolSpecimen">
       <div class="form-group">
         <label class="col-xs-3 control-label" translate="specimens.anatomic_site">Anatomic Site</label>
         <div class="col-xs-6">

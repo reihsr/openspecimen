@@ -13,6 +13,8 @@
       </generator>
     </id>
 
+    <property name="source" column="SOURCE"/>
+
     <property name="lastName" column="LAST_NAME" />
 
     <property name="firstName" column="FIRST_NAME" />
@@ -25,8 +27,6 @@
 
     <property name="sexGenotype" column="GENOTYPE" />
 
-    <property name="ethnicity" column="ETHNICITY" />
-
     <property name="uid" column="SOCIAL_SECURITY_NUMBER" unique="true" />
 
     <property name="activityStatus" column="ACTIVITY_STATUS" />
@@ -36,6 +36,11 @@
     <property name="vitalStatus" column="VITAL_STATUS" />
 
     <property name="empi" column="EMPI_ID"/>
+
+    <set name="ethnicities" table="OS_PARTICIPANT_ETHNICITIES" cascade="all-delete-orphan">
+      <key column="PARTICIPANT_ID"/>
+      <element column="ETHNICITY" type="string"/>
+    </set>
 
     <set name="pmis" table="CATISSUE_PART_MEDICAL_ID" inverse="true" cascade="all-delete-orphan">
       <key column="PARTICIPANT_ID" />
@@ -73,7 +78,8 @@
       from 
         com.krishagni.catissueplus.core.biospecimen.domain.Participant p
       where 
-        p.lastName = :lname and birthDate = :dob
+        p.lastName = :lname and
+        birthDate between :dobStart and :dobEnd
     </query>
 
     <query name="getParticipantIdByUid">

@@ -1,6 +1,7 @@
 package com.krishagni.catissueplus.core.de.repository;
 
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -11,20 +12,26 @@ import com.krishagni.catissueplus.core.administrative.repository.FormListCriteri
 import com.krishagni.catissueplus.core.common.Pair;
 import com.krishagni.catissueplus.core.common.events.DependentEntityDetail;
 import com.krishagni.catissueplus.core.common.repository.Dao;
+import com.krishagni.catissueplus.core.de.domain.Form;
 import com.krishagni.catissueplus.core.de.events.FormContextDetail;
 import com.krishagni.catissueplus.core.de.events.FormCtxtSummary;
 import com.krishagni.catissueplus.core.de.events.FormRecordSummary;
 import com.krishagni.catissueplus.core.de.events.FormSummary;
 import com.krishagni.catissueplus.core.de.events.ObjectCpDetail;
 
-import krishagni.catissueplus.beans.FormContextBean;
-import krishagni.catissueplus.beans.FormRecordEntryBean;
+public interface FormDao extends Dao<FormContextBean> {
+	public Form getFormById(Long formId);
 
-public interface FormDao extends Dao<FormContextBean>{	
+	public List<Form> getFormsByIds(Collection<Long> formIds);
+
 	public List<FormSummary> getAllFormsSummary(FormListCriteria crit);
 	
 	public Long getAllFormsCount(FormListCriteria crit);
 	
+	public boolean isSystemForm(Long formId);
+
+	public Date getUpdateTime(Long formId);
+
 	public List<FormSummary> getQueryForms();
 			
 	public List<FormSummary> getFormsByEntityType(String entityType);
@@ -34,6 +41,8 @@ public interface FormDao extends Dao<FormContextBean>{
 	public List<FormContextDetail> getFormContexts(Long formId);
 	
 	public List<FormCtxtSummary> getCprForms(Long cprId);
+
+	public List<FormCtxtSummary> getParticipantForms(Long cprId);
 		
 	public List<FormCtxtSummary> getSpecimenForms(Long specimenId);
 	
@@ -41,7 +50,7 @@ public interface FormDao extends Dao<FormContextBean>{
 	
 	public List<FormCtxtSummary> getScgForms(Long scgId);
 	
-	public List<FormCtxtSummary> getFormContexts(Long cpId, String entityType); 
+	public List<FormCtxtSummary> getFormContexts(Long cpId, String entityType);
 	
 	public List<FormRecordSummary> getFormRecords(Long formCtxtId, Long objectId);
 	
@@ -80,10 +89,12 @@ public interface FormDao extends Dao<FormContextBean>{
 	public List<DependentEntityDetail> getDependentEntities(Long formId);
 	
 	public String getFormChangeLogDigest(String file);
+
+	public Object[] getLatestFormChangeLog(String file);
 	
 	public void insertFormChangeLog(String file, String digest, Long formId);
 	
-	public void deleteFormContexts(Long formId);
+	public void deleteFormContexts(Collection<Long> formIds);
 
 	public void deleteRecords(Long formCtxtId, Collection<Long> recordIds);
 }

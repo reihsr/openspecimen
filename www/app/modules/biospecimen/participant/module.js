@@ -9,6 +9,7 @@ angular.module('os.biospecimen.participant',
     'os.biospecimen.participant.overview',
     'os.biospecimen.participant.visits',
     'os.biospecimen.participant.addedit',
+    'os.biospecimen.participant.bulkregistration',
     'os.biospecimen.participant.newreg',
     'os.biospecimen.participant.collect-specimens',
     'os.biospecimen.participant.consents',
@@ -16,7 +17,8 @@ angular.module('os.biospecimen.participant',
     'os.biospecimen.visit',
     'os.biospecimen.specimen',
     'os.biospecimen.extensions.list',
-    'os.biospecimen.extensions.addedit-record'
+    'os.biospecimen.extensions.addedit-record',
+    'os.biospecimen.specimenkit'
   ])
 
   .config(function($stateProvider) {
@@ -27,6 +29,7 @@ angular.module('os.biospecimen.participant',
         controller: function($scope, cp, cpViewCtx) {
           $scope.cp = cp;
           $scope.cpViewCtx = cpViewCtx;
+          cpViewCtx.codingEnabled = $scope.global.appProps.cp_coding_enabled;
 
           var sites = cp.cpSites.map(function(cpSite) { return cpSite.siteName; });
           $scope.partRegOpts =        {cp: cp.shortTitle, sites: sites, resource: 'ParticipantPhi', operations: ['Create']};
@@ -42,30 +45,39 @@ angular.module('os.biospecimen.participant',
 
           cpViewCtx: function(cp, AuthorizationService) {
             return {
-              participantUpdateAllowed: AuthorizationService.isAllowed({
+              participantImportAllowed: AuthorizationService.isAllowed({
                 resource: 'ParticipantPhi',
-                operations: ['Create', 'Update'],
+                operations: ['Bulk Import'],
                 cp: cp.shortTitle
               }),
 
-              visitSpecimenUpdateAllowed: AuthorizationService.isAllowed({
+              visitSpecimenImportAllowed: AuthorizationService.isAllowed({
                 resource: 'VisitAndSpecimen',
-                operations: ['Create', 'Update'],
+                operations: ['Bulk Import'],
                 cp: cp.shortTitle
               })
             }
           },
 
           listView: function(cp, CpConfigSvc) {
-            return CpConfigSvc.getListView(cp.id, 'participant-list');
+            var defListViewState = !cp.specimenCentric ? 'participant-list' : 'cp-specimens';
+            return CpConfigSvc.getListView(cp.id, defListViewState);
           },
 
-          reqBasedDistOrShip: function($injector) {
-            if ($injector.has('spmnReqCfgUtil')) {
-              return $injector.get('spmnReqCfgUtil').isReqBasedDistOrShippingEnabled();
-            } else {
-              return {value: false};
-            }
+          twoStepReg: function(SettingUtil) {
+            return SettingUtil.getSetting('biospecimen', 'two_step_patient_reg').then(
+              function(setting) {
+                return setting.value == 'true';
+              }
+            );
+          },
+
+          mrnAccessRestriction: function(SettingUtil) {
+            return SettingUtil.getSetting('biospecimen', 'mrn_restriction_enabled').then(
+              function(setting) {
+                return setting.value == 'true';
+              }
+            );
           }
         },
         parent: 'signed-in',
@@ -194,14 +206,19 @@ angular.module('os.biospecimen.participant',
         templateUrl: 'modules/common/import/add.html',
         controller: 'ImportObjectCtrl',
         resolve: {
-          allowedEntityTypes: function(cpViewCtx) {
+          allowedEntityTypes: function(cp, cpViewCtx) {
             var entityTypes = [];
-            if (cpViewCtx.participantUpdateAllowed) {
-              entityTypes.push('Participant');
+            if (!cp.specimenCentric && cpViewCtx.participantImportAllowed) {
+              entityTypes = entityTypes.concat(['CommonParticipant', 'Participant']);
             }
 
-            if (cpViewCtx.visitSpecimenUpdateAllowed) {
-              entityTypes = entityTypes.concat(['SpecimenCollectionGroup', 'Specimen', 'SpecimenEvent']);
+            if (!cp.specimenCentric && cpViewCtx.visitSpecimenImportAllowed) {
+              entityTypes.push('SpecimenCollectionGroup');
+            }
+
+            if (cpViewCtx.visitSpecimenImportAllowed) {
+              entityTypes.push('Specimen');
+              entityTypes.push('SpecimenEvent');
             }
 
             return entityTypes;
@@ -243,12 +260,16 @@ angular.module('os.biospecimen.participant',
         url: '/participants/:cprId',
         template: '<div ui-view></div>',
         resolve: {
-          cpr: function($stateParams, CollectionProtocolRegistration) {
+          cpr: function($stateParams, cp, Participant, CollectionProtocolRegistration) {
             if (!!$stateParams.cprId && $stateParams.cprId > 0) {
               return CollectionProtocolRegistration.getById($stateParams.cprId);
             } 
 
-            return new CollectionProtocolRegistration({registrationDate: new Date()});
+            var participant = new Participant({source: 'OpenSpecimen'});
+            return new CollectionProtocolRegistration({
+              cpId: cp.id, cpShortTitle: cp.shortTitle,
+              registrationDate: new Date(), participant: participant
+            });
           },
 
           hasSde: function($injector) {
@@ -288,6 +309,18 @@ angular.module('os.biospecimen.participant',
 
           pendingSpmnsDispInterval: function(SettingUtil) {
             return SettingUtil.getSetting('biospecimen', 'pending_spmns_disp_interval');
+          },
+
+          barcodingEnabled: function(cp, SettingUtil) {
+            if (cp.barcodingEnabled) {
+              return true;
+            }
+
+            return SettingUtil.getSetting('biospecimen', 'enable_spmn_barcoding').then(
+              function(setting) {
+                return setting.value.toLowerCase() == 'true';
+              }
+            );
           }
         },
         controller: 'ParticipantRootCtrl',
@@ -295,7 +328,7 @@ angular.module('os.biospecimen.participant',
         abstract: true
       })
       .state('participant-addedit', {
-        url: '/addedit-participant',
+        url: '/addedit-participant?twoStep',
         templateProvider: function($stateParams, $q, CpConfigSvc, PluginReg) {
           return $q.when(CpConfigSvc.getRegParticipantTmpl($stateParams.cpId, $stateParams.cprId)).then(
             function(tmpl) {
@@ -311,13 +344,6 @@ angular.module('os.biospecimen.participant',
           extensionCtxt: function(cp, Participant) {
             return Participant.getExtensionCtxt({cpId: cp.id});
           },
-          twoStepReg: function(SettingUtil) {
-            return SettingUtil.getSetting('biospecimen', 'two_step_patient_reg').then(
-              function(setting) {
-                return setting.value == 'true';
-              }
-            );
-          },
           addPatientOnLookupFail: function(SettingUtil) {
             return SettingUtil.getSetting('biospecimen', 'add_patient_on_lookup_fail').then(
               function(setting) {
@@ -325,8 +351,20 @@ angular.module('os.biospecimen.participant',
               }
             );
           }, 
-          lockedFields: function(CpConfigSvc) {
-            return CpConfigSvc.getLockedParticipantFields();
+          lockedFields: function(cpr, CpConfigSvc) {
+            var participant = cpr.participant || {};
+            return CpConfigSvc.getLockedParticipantFields(participant.source || 'OpenSpecimen');
+          }
+        },
+        parent: 'participant-root'
+      })
+      .state('participant-bulkreg', {
+        url: '/bulk-registration',
+        templateUrl: 'modules/biospecimen/participant/bulk-registration.html',
+        controller: 'BulkRegistrationCtrl',
+        resolve: {
+          events: function(cp, CollectionProtocolEvent) {
+            return CollectionProtocolEvent.listFor(cp.id);
           }
         },
         parent: 'participant-root'
@@ -404,7 +442,24 @@ angular.module('os.biospecimen.participant',
             }
 
             return null;
-          }
+          },
+          latestVisit: function($stateParams, cpr) {
+            //
+            // required for lastest visit clinical diagnosis.
+            //
+            return $stateParams.visitId ? null : cpr.getLatestVisit();
+          },
+          customFieldGroups: function($stateParams, hasSde, cp, CpConfigSvc) {
+            if (!hasSde) {
+              return [];
+            }
+
+            return CpConfigSvc.getWorkflowData(cp.id, 'specimenCollection').then(
+              function(data) {
+                return (data && data.fieldGroups) || [];
+              }
+            );
+          },
         },
         parent: 'participant-root'
       })

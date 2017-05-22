@@ -1,9 +1,10 @@
 
 angular.module('os.biospecimen.participant.addedit', ['os.biospecimen.models', 'os.administrative.models'])
   .controller('ParticipantAddEditCtrl', function(
-    $scope, $state, $stateParams, $translate, $modal,
-    cp, cpr, extensionCtxt, hasDict, twoStepReg, addPatientOnLookupFail, lockedFields,
-    CollectionProtocolRegistration, Participant,
+    $scope, $state, $stateParams, $translate, $modal, $q,
+    cp, cpr, extensionCtxt, hasDict, twoStepReg,
+    mrnAccessRestriction, addPatientOnLookupFail, lockedFields,
+    CpConfigSvc, CollectionProtocolRegistration, Participant,
     Site, PvManager, ExtensionsUtil, Alerts) {
 
     var availableSites = [];
@@ -15,7 +16,7 @@ angular.module('os.biospecimen.participant.addedit', ['os.biospecimen.models', '
       $scope.allowIgnoreMatches = true;
 
       $scope.disableFieldOpts = {}
-      if (!!cpr.id) {
+      if (!!cpr.id && cpr.participant.source != 'OpenSpecimen') {
         $scope.disableFieldOpts = {
           fields: getStaticFields(lockedFields),
           disable: !!cpr.id,
@@ -27,9 +28,10 @@ angular.module('os.biospecimen.participant.addedit', ['os.biospecimen.models', '
       $scope.cpr = angular.copy(cpr);
 
       $scope.partCtx = {
-        obj: {cpr: $scope.cpr},
+        obj: {cpr: $scope.cpr, cp: cp},
         inObjs: ['cpr'],
-        twoStepReg: !cpr.id && twoStepReg
+        twoStepReg: !cpr.id && (twoStepReg && $stateParams.twoStep == 'true'),
+        mrnAccessRestriction: mrnAccessRestriction
       }
 
       $scope.deFormCtrl = {};
@@ -100,6 +102,60 @@ angular.module('os.biospecimen.participant.addedit', ['os.biospecimen.models', '
       );
     };
 
+    function checkPreRegParticipants(matchedParticipants) {
+      $scope.partCtx.hasPreRegParticipants = false;
+
+      var matchingCp = function(cpr) { return cpr.cpId == $scope.cpId };
+      angular.forEach(matchedParticipants,
+        function(matchedPart) {
+          matchedPart.preReg = (matchedPart.participant.registeredCps || []).filter(matchingCp).length > 0;
+          if (matchedPart.preReg) {
+            $scope.partCtx.hasPreRegParticipants = true;
+          }
+        }
+      );
+    }
+
+    function copyStaticField(src, dest, lockedFields, field, isArray) {
+      var fqn = 'cpr.participant.' + field;
+      if (lockedFields.indexOf(fqn) != -1) {
+        return; // field is locked. Cannot overwrite its value.
+      }
+
+      if (isArray) {
+        if (!src[field] || src[field].length == 0) {
+          return; // source array is either empty or undefined.
+        }
+
+        if (!!dest[field] && dest[field].length > 0) {
+          return; // destination array is non-empty.
+        }
+      } else if (!src[field] || !!dest[field]) {
+        return;   // either source field value is empty or destination field value is non-empty.
+      }
+
+      dest[field] = src[field]; // copy
+    }
+
+    function copyStaticFields(src, dest, lockedFields) {
+      var primitiveFields = [
+        'firstName', 'lastName', 'middleName', 'birthDate', 'deathDate',
+        'gender', 'vitalStatus', 'uid', 'empi'
+      ];
+      angular.forEach(primitiveFields,
+        function(field) {
+          copyStaticField(src, dest, lockedFields, field, false);
+        }
+      );
+
+      var arrayFields = ['races', 'ethnicities', 'pmis'];
+      angular.forEach(arrayFields,
+        function(field) {
+          copyStaticField(src, dest, lockedFields, field, true);
+        }
+      );
+    }
+
     $scope.pmiText = function(pmi) {
       return pmi.siteName + (pmi.mrn ? " (" + pmi.mrn + ")" : "");
     }
@@ -136,16 +192,26 @@ angular.module('os.biospecimen.participant.addedit', ['os.biospecimen.models', '
               return;
             }
 
-            $scope.allowIgnoreMatches = true;
-            for (var i = 0; i < result.length; ++i) {
-              var matchedAttrs = result[i].matchedAttrs;
-              if (matchedAttrs.length > 1 || (matchedAttrs[0] != 'lnameAndDob')) {
-                $scope.allowIgnoreMatches = false;
-                break;
-              }
-            } 
+            if (!$scope.cpr.id) {
+              checkPreRegParticipants(result);
+            }
 
-            $scope.allowIgnoreMatches = participant.id || $scope.allowIgnoreMatches;
+            $scope.allowIgnoreMatches = true;
+            angular.forEach(result,
+              function(match) {
+                if (!match.participant.id && match.participant.source != 'OpenSpecimen') {
+                  //
+                  // Ask API to not use existing participant ID
+                  //
+                  match.participant.id = -1;
+                }
+
+                if (match.matchedAttrs.length > 1 || match.matchedAttrs[0] != 'lnameAndDob') {
+                  $scope.allowIgnoreMatches = false;
+                }
+              }
+            );
+
             $scope.matchedParticipants = result;
             inputParticipant = $scope.cpr.participant;
           }
@@ -174,25 +240,46 @@ angular.module('os.biospecimen.participant.addedit', ['os.biospecimen.models', '
 
     $scope.registerUsingSelectedParticipant = function() {
       var selectedPart = $scope.selectedParticipant;
-      if (!!selectedPart.id) {
-        $scope.cpr.participant = new Participant({id: selectedPart.id, pmis: selectedPart.pmis});
+
+      var promise;
+      if (inputParticipant.source != selectedPart.source) {
+        promise = CpConfigSvc.getLockedParticipantFields(selectedPart.source);
       } else {
-        $scope.cpr.participant = new Participant(selectedPart);
+        var q = $q.defer();
+        q.resolve(lockedFields);
+        promise = q.promise;
       }
 
-      registerParticipant();
+      promise.then(
+        function(lockedFields) {
+          copyStaticFields(inputParticipant, selectedPart, lockedFields);
+          $scope.cpr.participant = new Participant(selectedPart);
+          registerParticipant();
+        }
+      );
     };
 
     $scope.confirmMerge = function() {
       var modalInstance = $modal.open({
         templateUrl: "modules/biospecimen/participant/confirm-merge.html",
-        controller: function($scope, $modalInstance) {
+        controller: function($scope, $state, $modalInstance, cpr) {
+          $scope.cpr = cpr;
+          $scope.params = {
+            cpr: cpr,
+            url: $state.href('participant-detail.overview', {cpId: cpr.cpId, cprId: cpr.id})
+          };
+
           $scope.ok = function() {
             $modalInstance.close(true);
           }
 
           $scope.cancel = function() {
             $modalInstance.dismiss('cancel');
+          }
+        },
+        resolve: {
+          cpr: function() {
+            return cpr;
           }
         }
       });
@@ -215,11 +302,16 @@ angular.module('os.biospecimen.participant.addedit', ['os.biospecimen.models', '
               Alerts.error('participant.no_matching_participant');
             }
           } else {
+            checkPreRegParticipants(result);
+
             $scope.allowIgnoreMatches = false;
             $scope.matchedParticipants = result;
 
             inputParticipant = $scope.cpr.participant;
-            $scope.selectParticipant(result[0].participant);
+
+            if (result.length == 1 && !result[0].preReg) {
+              $scope.selectParticipant(result[0].participant);
+            }
           }
         }
       );

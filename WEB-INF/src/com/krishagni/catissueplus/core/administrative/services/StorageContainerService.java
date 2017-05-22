@@ -2,22 +2,27 @@ package com.krishagni.catissueplus.core.administrative.services;
 
 import java.util.List;
 
+import com.krishagni.catissueplus.core.administrative.domain.StorageContainer;
 import com.krishagni.catissueplus.core.administrative.events.AssignPositionsOp;
 import com.krishagni.catissueplus.core.administrative.events.ContainerHierarchyDetail;
 import com.krishagni.catissueplus.core.administrative.events.ContainerQueryCriteria;
 import com.krishagni.catissueplus.core.administrative.events.ContainerReplicationDetail;
 import com.krishagni.catissueplus.core.administrative.events.ReservePositionsOp;
-import com.krishagni.catissueplus.core.administrative.events.TenantDetail;
 import com.krishagni.catissueplus.core.administrative.events.StorageContainerDetail;
 import com.krishagni.catissueplus.core.administrative.events.StorageContainerPositionDetail;
 import com.krishagni.catissueplus.core.administrative.events.StorageContainerSummary;
 import com.krishagni.catissueplus.core.administrative.events.StorageLocationSummary;
+import com.krishagni.catissueplus.core.administrative.events.TenantDetail;
 import com.krishagni.catissueplus.core.administrative.events.VacantPositionsOp;
 import com.krishagni.catissueplus.core.administrative.repository.StorageContainerListCriteria;
+import com.krishagni.catissueplus.core.biospecimen.events.SpecimenInfo;
+import com.krishagni.catissueplus.core.biospecimen.repository.SpecimenListCriteria;
+import com.krishagni.catissueplus.core.common.events.BulkDeleteEntityOp;
 import com.krishagni.catissueplus.core.common.events.DependentEntityDetail;
 import com.krishagni.catissueplus.core.common.events.ExportedFileDetail;
 import com.krishagni.catissueplus.core.common.events.RequestEvent;
 import com.krishagni.catissueplus.core.common.events.ResponseEvent;
+import com.krishagni.catissueplus.core.de.events.QueryDataExportResult;
 
 public interface StorageContainerService {
 	public ResponseEvent<List<StorageContainerSummary>> getStorageContainers(RequestEvent<StorageContainerListCriteria> req);
@@ -27,6 +32,10 @@ public interface StorageContainerService {
 	public ResponseEvent<StorageContainerDetail> getStorageContainer(RequestEvent<ContainerQueryCriteria> req);
 	
 	public ResponseEvent<List<StorageContainerPositionDetail>> getOccupiedPositions(RequestEvent<Long> req);
+
+	ResponseEvent<List<SpecimenInfo>> getSpecimens(RequestEvent<SpecimenListCriteria> req);
+
+	ResponseEvent<QueryDataExportResult> getSpecimensReport(RequestEvent<ContainerQueryCriteria> req);
 	
 	public ResponseEvent<StorageContainerDetail> createStorageContainer(RequestEvent<StorageContainerDetail> req);
 	
@@ -42,7 +51,7 @@ public interface StorageContainerService {
 		
 	public ResponseEvent<List<DependentEntityDetail>> getDependentEntities(RequestEvent<Long> req);
 	
-	public ResponseEvent<StorageContainerDetail> deleteStorageContainer(RequestEvent<Long> req);
+	public ResponseEvent<List<StorageContainerSummary>> deleteStorageContainers(RequestEvent<BulkDeleteEntityOp> req);
 	
 	public ResponseEvent<Boolean> replicateStorageContainer(RequestEvent<ContainerReplicationDetail> req);
 
@@ -71,5 +80,12 @@ public interface StorageContainerService {
 
 	public ResponseEvent<List<StorageContainerSummary>> getChildContainers(RequestEvent<ContainerQueryCriteria> req);
 
+	ResponseEvent<List<StorageContainerSummary>> getDescendantContainers(RequestEvent<StorageContainerListCriteria> req);
+
 	public ResponseEvent<List<StorageLocationSummary>> getVacantPositions(RequestEvent<VacantPositionsOp> req);
+
+	//
+	// Internal APIs
+	//
+	public StorageContainer createStorageContainer(StorageContainer base, StorageContainerDetail input);
 }

@@ -7,6 +7,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.codehaus.jackson.map.annotate.JsonSerialize;
+
 import com.krishagni.catissueplus.core.administrative.domain.StorageContainerPosition;
 import com.krishagni.catissueplus.core.administrative.events.StorageLocationSummary;
 import com.krishagni.catissueplus.core.biospecimen.domain.Specimen;
@@ -14,6 +16,7 @@ import com.krishagni.catissueplus.core.biospecimen.domain.SpecimenRequirement;
 import com.krishagni.catissueplus.core.common.AttributeModifiedSupport;
 import com.krishagni.catissueplus.core.common.ListenAttributeChanges;
 
+@JsonSerialize(include= JsonSerialize.Inclusion.NON_NULL)
 @ListenAttributeChanges
 public class SpecimenInfo extends AttributeModifiedSupport implements Comparable<SpecimenInfo>, Serializable {
 	
@@ -74,6 +77,8 @@ public class SpecimenInfo extends AttributeModifiedSupport implements Comparable
 	private String storageType;
 	
 	private String collectionContainer;
+
+	private String storageSite;
 	
 	private String activityStatus;
 	
@@ -309,6 +314,14 @@ public class SpecimenInfo extends AttributeModifiedSupport implements Comparable
 		this.collectionContainer = collectionContainer;
 	}
 
+	public String getStorageSite() {
+		return storageSite;
+	}
+
+	public void setStorageSite(String storageSite) {
+		this.storageSite = storageSite;
+	}
+
 	public String getActivityStatus() {
 		return activityStatus;
 	}
@@ -388,6 +401,7 @@ public class SpecimenInfo extends AttributeModifiedSupport implements Comparable
 			location.setId(-1L);
 		} else {
 			location = StorageLocationSummary.from(position);
+			result.setStorageSite(position.getContainer().getSite().getName());
 		}
 		result.setStorageLocation(location);
 

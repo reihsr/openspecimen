@@ -10,10 +10,11 @@ angular.module('os.biospecimen.specimen.addedit', [])
       var currSpecimen = $scope.currSpecimen = angular.copy(specimen);
       delete currSpecimen.children;
 
-      currSpecimen.visitId = visit.id;
+      currSpecimen.cpId = currSpecimen.cpId || cp.id;
+      currSpecimen.visitId = visit && visit.id;
       currSpecimen.createdOn = currSpecimen.createdOn || new Date();
 
-      if (currSpecimen.lineage != 'New') {
+      if (currSpecimen.lineage == 'Aliquot') {
         currSpecimen.anatomicSite = currSpecimen.laterality = undefined;
       }
 
@@ -66,7 +67,7 @@ angular.module('os.biospecimen.specimen.addedit', [])
       $scope.currSpecimen.concentration = Util.getNumberInScientificNotation($scope.currSpecimen.concentration);
 
       $scope.spmnCtx = {
-        obj: {specimen: $scope.currSpecimen}, inObjs: ['specimen'], exObjs: exObjs,
+        obj: {specimen: $scope.currSpecimen, cp: cp}, inObjs: ['specimen'], exObjs: exObjs,
         isVirtual: specimen.showVirtual()
       }
 
@@ -140,7 +141,7 @@ angular.module('os.biospecimen.specimen.addedit', [])
       $scope.currSpecimen.$saveOrUpdate().then(
         function(result) {
           angular.extend($scope.specimen, result);
-          var params = {specimenId: result.id, srId: result.reqId};
+          var params = {specimenId: result.id, cprId: result.cprId, visitId: result.visitId, srId: result.reqId};
           $state.go('specimen-detail.overview', params);
         }
       );

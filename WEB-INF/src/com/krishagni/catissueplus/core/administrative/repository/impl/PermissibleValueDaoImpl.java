@@ -72,6 +72,19 @@ public class PermissibleValueDaoImpl extends AbstractDao<PermissibleValue> imple
 
 	@SuppressWarnings("unchecked")
 	@Override
+	public List<PermissibleValue> getByPropertyKeyValue(String attribute, String propName, String propValue) {
+		List<PermissibleValue> pvs = getSessionFactory().getCurrentSession()
+				.getNamedQuery(GET_BY_PROP_KEY_VALUE)
+				.setString("attribute", attribute)
+				.setString("key", propName)
+				.setString("value", propValue)
+				.list();
+
+		return pvs;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
 	public List<String> getSpecimenClasses() {
 		return sessionFactory.getCurrentSession()
 				.getNamedQuery(GET_SPECIMEN_CLASSES)
@@ -86,7 +99,16 @@ public class PermissibleValueDaoImpl extends AbstractDao<PermissibleValue> imple
 				.setParameterList("specimenClasses", specimenClasses)
 				.list();
 	}
-	
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public String getSpecimenClass(String type) {
+		List<String> classes = getCurrentSession().getNamedQuery(GET_SPECIMEN_CLASS)
+			.setString("type", type)
+			.list();
+		return classes.size() == 1 ? classes.get(0) : null;
+	}
+
 	@Override
 	public boolean exists(String attribute, Collection<String> values) {
 		return exists(attribute, values, false);
@@ -183,7 +205,11 @@ public class PermissibleValueDaoImpl extends AbstractDao<PermissibleValue> imple
 
 	private static final String GET_BY_VALUE = FQN + ".getByValue";
 
+	private static final String GET_BY_PROP_KEY_VALUE = FQN + ".getByPropertyKeyValue";
+
 	private static final String GET_SPECIMEN_CLASSES = FQN + ".getSpecimenClasses";
 
 	private static final String GET_SPECIMEN_TYPES = FQN + ".getSpecimenTypes";
+
+	private static final String GET_SPECIMEN_CLASS = FQN + ".getSpecimenClass";
 }

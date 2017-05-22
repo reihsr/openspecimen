@@ -13,8 +13,6 @@
       </generator>
     </id>
 
-    <property name="clinicalDiagnosis" column="CLINICAL_DIAGNOSIS" />
-
     <property name="clinicalStatus" column="CLINICAL_STATUS" />
 
     <property name="activityStatus" column="ACTIVITY_STATUS" />
@@ -34,6 +32,11 @@
     <property name="visitDate" type="timestamp" column="COLLECTION_TIMESTAMP" />
 
     <property name="missedReason" column="MISSED_REASON" />
+
+    <set name="clinicalDiagnoses" table="OS_VISIT_CLIN_DIAGNOSES" cascade="all-delete-orphan">
+      <key column="VISIT_ID"/>
+      <element column="CLINICAL_DIAGNOSIS" type="string"/>
+    </set>
 
     <many-to-one name="registration"
       class="com.krishagni.catissueplus.core.biospecimen.domain.CollectionProtocolRegistration"
@@ -81,6 +84,19 @@
         com.krishagni.catissueplus.core.biospecimen.domain.Visit
       where
         surgicalPathologyNumber = :sprNumber
+    </query>
+
+    <query name="getLatestVisitByCprId">
+      select
+        visit
+      from
+        com.krishagni.catissueplus.core.biospecimen.domain.Visit visit
+        join visit.registration cpr
+      where
+        cpr.id = :cprId and
+        visit.status = 'Complete'
+      order by
+        visit.visitDate desc, visit.id desc
     </query>
 
     <sql-query name="getVisitsSummaryByCprId">

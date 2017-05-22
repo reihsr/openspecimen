@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 
 import org.apache.commons.collections.CollectionUtils;
 
@@ -37,7 +39,7 @@ public class VisitDetail extends AttributeModifiedSupport {
 
 	private String name;
 	
-	private String clinicalDiagnosis;
+	private Set<String> clinicalDiagnoses;
 	
 	private String clinicalStatus;
 
@@ -66,6 +68,11 @@ public class VisitDetail extends AttributeModifiedSupport {
 	private String cohort;
 	
 	private ExtensionDetail extensionDetail;
+	
+	//
+	// transient variables specifying action to be performed
+	//
+	private boolean forceDelete;
 
 	public Long getCprId() {
 		return cprId;
@@ -147,12 +154,12 @@ public class VisitDetail extends AttributeModifiedSupport {
 		this.name = name;
 	}
 
-	public String getClinicalDiagnosis() {
-		return clinicalDiagnosis;
+	public Set<String> getClinicalDiagnoses() {
+		return clinicalDiagnoses;
 	}
 
-	public void setClinicalDiagnosis(String clinicalDiagnosis) {
-		this.clinicalDiagnosis = clinicalDiagnosis;
+	public void setClinicalDiagnoses(Set<String> clinicalDiagnoses) {
+		this.clinicalDiagnoses = clinicalDiagnoses;
 	}
 
 	public String getClinicalStatus() {
@@ -267,6 +274,14 @@ public class VisitDetail extends AttributeModifiedSupport {
 		this.extensionDetail = extensionDetail;
 	}
 
+	public boolean isForceDelete() {
+		return forceDelete;
+	}
+
+	public void setForceDelete(boolean forceDelete) {
+		this.forceDelete = forceDelete;
+	}
+
 	public static VisitDetail from(Visit visit) {
 		return from(visit, true, true);
 	}
@@ -274,7 +289,7 @@ public class VisitDetail extends AttributeModifiedSupport {
 	public static VisitDetail from(Visit visit, boolean partial, boolean excludePhi) {
 		VisitDetail detail = new VisitDetail();
 		detail.setActivityStatus(visit.getActivityStatus());
-		detail.setClinicalDiagnosis(visit.getClinicalDiagnosis());
+		detail.setClinicalDiagnoses(new HashSet<>(visit.getClinicalDiagnoses()));
 		detail.setClinicalStatus(visit.getClinicalStatus());
 		detail.setStatus(visit.getStatus());
 		detail.setComments(visit.getComments());

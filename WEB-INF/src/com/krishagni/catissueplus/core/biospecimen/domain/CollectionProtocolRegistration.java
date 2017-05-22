@@ -28,11 +28,9 @@ import com.krishagni.catissueplus.core.common.util.Utility;
 
 @Configurable
 @Audited
-public class CollectionProtocolRegistration {
+public class CollectionProtocolRegistration extends BaseEntity {
 	private static final String ENTITY_NAME = "collection_protocol_registration";
 	
-	private Long id;
-
 	private String ppid;
 
 	private Date registrationDate;
@@ -61,18 +59,12 @@ public class CollectionProtocolRegistration {
 	@Qualifier("ppidGenerator")
 	private LabelGenerator labelGenerator;
 
+	private transient boolean forceDelete;
+
 	public static String getEntityName() {
 		return ENTITY_NAME;
 	}
 	
-	public Long getId() {
-		return id;
-	}
-
-	public void setId(Long id) {
-		this.id = id;
-	}
-
 	public String getPpid() {
 		return ppid;
 	}
@@ -201,6 +193,14 @@ public class CollectionProtocolRegistration {
 		this.barcode = barcode;
 	}
 
+	public boolean isForceDelete() {
+		return forceDelete;
+	}
+
+	public void setForceDelete(boolean forceDelete) {
+		this.forceDelete = forceDelete;
+	}
+
 	public boolean isActive() {
 		return Status.ACTIVITY_STATUS_ACTIVE.getStatus().equals(this.getActivityStatus());
 	}
@@ -224,7 +224,7 @@ public class CollectionProtocolRegistration {
 	}
 	
 	public void delete() {
-		delete(true);
+		delete(!isForceDelete());
 	}
 
 	public void delete(boolean checkDependency) {
@@ -252,6 +252,7 @@ public class CollectionProtocolRegistration {
 	}
 
 	public void update(CollectionProtocolRegistration cpr) {
+		setForceDelete(cpr.isForceDelete());
 		updateActivityStatus(cpr.getActivityStatus());
 		if (!isActive()) {
 			return;
@@ -302,10 +303,10 @@ public class CollectionProtocolRegistration {
 
 	private void updateConsentResponses(Collection<ConsentTierResponse> consentResponses) {
 		Map<String, ConsentTierResponse> existingResps = getConsentResponses().stream()
-			.collect(Collectors.toMap(ConsentTierResponse::getStatement, resp -> resp));
+			.collect(Collectors.toMap(ConsentTierResponse::getStatementCode, resp -> resp));
 
 		for(ConsentTierResponse newResp : consentResponses) {
-			ConsentTierResponse existingResp = existingResps.remove(newResp.getConsentTier().getStatement());
+			ConsentTierResponse existingResp = existingResps.remove(newResp.getStatementCode());
 			if (existingResp == null) {
 				getConsentResponses().add(newResp);
 			} else {

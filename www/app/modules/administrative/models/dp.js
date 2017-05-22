@@ -1,7 +1,29 @@
 
 angular.module('os.administrative.models.dp', ['os.common.models'])
   .factory('DistributionProtocol', function(osModel, $http) {
-    var DistributionProtocol = osModel('distribution-protocols');
+    var DistributionProtocol =
+      osModel(
+        'distribution-protocols',
+        function(dp) {
+          dp.consentModel = osModel('distribution-protocols/' + dp.$id() + '/consent-tiers');
+
+          dp.consentModel.prototype.getDisplayName = function() {
+            return this.consentStmtCode;
+          }
+
+          dp.consentModel.prototype.getType = function() {
+            return 'consent';
+          }
+        }
+      );
+
+    function updateActivityStatus(dp, status) {
+      return $http.put(DistributionProtocol.url() + dp.$id() + '/activity-status', {activityStatus: status}).then(
+        function(result) {
+          return new DistributionProtocol(result.data);
+        }
+      );
+    }
 
     DistributionProtocol.prototype.getType = function() {
       return 'distribution_protocol';
@@ -10,7 +32,15 @@ angular.module('os.administrative.models.dp', ['os.common.models'])
     DistributionProtocol.prototype.getDisplayName = function() {
       return this.title;
     }
-    
+
+    DistributionProtocol.prototype.getConsentTiers = function() {
+      return this.consentModel.query();
+    };
+
+    DistributionProtocol.prototype.newConsentTier = function(consentTier) {
+      return new this.consentModel(consentTier);
+    };
+
     DistributionProtocol.prototype.close = function() {
       return updateActivityStatus(this, 'Closed');
     }
@@ -18,13 +48,10 @@ angular.module('os.administrative.models.dp', ['os.common.models'])
     DistributionProtocol.prototype.reopen = function() {
       return updateActivityStatus(this, 'Active');
     }
-    
-    function updateActivityStatus(dp, status) {
-      return $http.put(DistributionProtocol.url() + '/' + dp.$id() + '/activity-status', {activityStatus: status}).then(
-        function(result) {
-          return new DistributionProtocol(result.data);
-        }
-      );
+
+    DistributionProtocol.prototype.historyExportUrl = function() {
+      var params = '?dpId=' + this.$id() + '&groupBy=specimenType,anatomicSite,pathologyStatus';
+      return DistributionProtocol.url() + '/orders-report' + params;
     }
     
     DistributionProtocol.getOrders = function(params) {
@@ -35,9 +62,9 @@ angular.module('os.administrative.models.dp', ['os.common.models'])
       );
     }
     
-    DistributionProtocol.prototype.historyExportUrl = function() {
-      var params = '?dpId=' + this.$id() + '&groupBy=specimenType,anatomicSite,pathologyStatus';
-      return DistributionProtocol.url() + '/orders-report' + params;
+    DistributionProtocol.bulkDelete = function(dpIds) {
+      return $http.delete(DistributionProtocol.url(), {params: {id: dpIds}})
+        .then(DistributionProtocol.modelArrayRespTransform);
     }
     
     return DistributionProtocol;

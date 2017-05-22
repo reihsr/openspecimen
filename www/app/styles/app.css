@@ -31,12 +31,16 @@ body {
   height: 40px;
   width: 235px;
   padding: 2.5px;
-  flex-grow: 0.25;
+  flex-grow: 0.30;
   position: relative;
 }
 
 .os-navbar .logo img {
   height: 30px;
+}
+
+.os-navbar .logo .deploy-logo {
+  margin-left: 6px;
 }
 
 .os-navbar .logo .deploy-env {
@@ -274,6 +278,26 @@ h4 + .btn-group {
   position: absolute;
   right: 0px;
   top: 25px;
+}
+
+.os-detail-sublist .container {
+  position: absolute;
+  top: 45px !important;
+  padding-top: 0px;
+  bottom: 0px;
+  height: auto;
+  overflow: auto;
+  width: 100%;
+}
+
+.os-detail-sublist {
+  margin-left: -15px;
+  margin-right: -15px;
+}
+
+.os-detail-sublist .os-page-commands {
+  padding-left: 0px;
+  padding-right: 0px;
 }
 
 .os-inline-btn {
@@ -831,7 +855,7 @@ h4.os-sub-section-title, h5.os-sub-section-title, h6.os-sub-section-title {
   top: 3px;
 }
 
-.os-col-2,.os-col-5,.os-col-10,.os-col-12,.os-col-15,.os-col-20,.os-col-25,
+.os-col-2,.os-col-5,.os-col-10,.os-col-12,.os-col-14,.os-col-15,.os-col-20,.os-col-25,
 .os-col-30,.os-col-35,.os-col-40,.os-col-45,.os-col-50,
 .os-col-55,.os-col-60,.os-col-65,.os-col-70,.os-col-75,
 .os-col-80,.os-col-85,.os-col-90,.os-col-95,.os-col-100 {
@@ -854,6 +878,10 @@ h4.os-sub-section-title, h5.os-sub-section-title, h6.os-sub-section-title {
 
 .os-col-12 {
   width: 12%;
+}
+
+.os-col-14 {
+  width: 14%;
 }
 
 .os-col-15 {
@@ -960,7 +988,11 @@ h4.os-sub-section-title, h5.os-sub-section-title, h6.os-sub-section-title {
 }
 
 .os-no-left-padding {
-  padding-left: 0px;
+  padding-left: 0px!important;
+}
+
+.os-no-right-padding {
+  padding-right: 0px!important;
 }
 
 .os-big-dropdown-menu {
@@ -1003,6 +1035,15 @@ h4.os-sub-section-title, h5.os-sub-section-title, h6.os-sub-section-title {
   padding: 0px;
   border: 1px solid #ddd;
   border-radius: 4px;
+}
+
+.os-about-modal.modal.in {
+  display: flex!important;
+  align-items: center;
+}
+
+.os-about-modal .os-about-po {
+  width: 100%;
 }
 
 .dropdown-menu .os-about-po { /** offset dropdown menu's padding  **/
@@ -1135,4 +1176,13 @@ h4.os-sub-section-title, h5.os-sub-section-title, h6.os-sub-section-title {
 
 .form-horizontal .control-text {
   padding-top: 7px;
+}
+
+.os-clear-4 > div:nth-child(4n + 1) {
+  clear: both;
+}
+
+.input-group .input-group-btn .btn:last-child {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }

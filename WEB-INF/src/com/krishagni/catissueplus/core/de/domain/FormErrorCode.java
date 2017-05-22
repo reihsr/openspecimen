@@ -17,6 +17,8 @@ public enum FormErrorCode implements ErrorCode {
 	
 	FILE_NOT_FOUND,
 	
+	UPLOADED_FILE_NOT_FOUND,
+	
 	NO_ASSOCIATION,
 			
 	OP_NOT_ALLOWED,
@@ -29,6 +31,8 @@ public enum FormErrorCode implements ErrorCode {
 	
 	REC_ID_SPECIFIED_FOR_CREATE,
 	
+	SYS_FORM_UPDATE_NOT_ALLOWED,
+
 	SYS_FORM_DEL_NOT_ALLOWED,
 	
 	SYS_REC_DEL_NOT_ALLOWED,

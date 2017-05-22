@@ -1,5 +1,7 @@
 package com.krishagni.catissueplus.core.administrative.repository;
 
+import java.util.List;
+
 import com.krishagni.catissueplus.core.common.events.AbstractListCriteria;
 
 
@@ -8,10 +10,14 @@ public class SiteListCriteria extends AbstractListCriteria<SiteListCriteria> {
 	private String resource;
 	
 	private String operation;
-	
+
 	private String institute;
-	
+
 	private boolean listAll;
+
+	private List<String> includeTypes;
+
+	private List<String> excludeTypes;
 	
 	@Override
 	public SiteListCriteria self() {
@@ -44,7 +50,7 @@ public class SiteListCriteria extends AbstractListCriteria<SiteListCriteria> {
 		this.institute = institute;
 		return self();
 	}
-	
+
 	public boolean listAll() {
 		return listAll;
 	}
@@ -53,5 +59,22 @@ public class SiteListCriteria extends AbstractListCriteria<SiteListCriteria> {
 		this.listAll = listAll;
 		return self();
 	}
-	
+
+	public List<String> includeTypes() {
+		return includeTypes;
+	}
+
+	public SiteListCriteria includeTypes(List<String> includeTypes) {
+		this.includeTypes = includeTypes;
+		return self();
+	}
+
+	public List<String> excludeTypes() {
+		return excludeTypes;
+	}
+
+	public SiteListCriteria excludeTypes(List<String> excludeTypes) {
+		this.excludeTypes = excludeTypes;
+		return self();
+	}
 }

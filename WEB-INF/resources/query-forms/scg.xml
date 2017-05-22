@@ -60,7 +60,7 @@
             <caption>#getMessage("visit_site")</caption>
             <column>NAME</column>
             <options>
-              <sql>select distinct name from CATISSUE_SITE</sql>
+              <sql>select name from CATISSUE_SITE where activity_status != 'Disabled'</sql>
             </options>
             <recordUrl>#/object-state-params-resolver?stateName=site-detail.overview&amp;objectName=site&amp;key=name&amp;value={{$value}}</recordUrl>
           </dropDown>
@@ -140,16 +140,20 @@
       </subForm>
     </row>
     <row>
-      <dropDown>
+      <listBox>
         <name>clinicalDiagnosis</name>
         <udn>clinicalDiagnosis</udn>
         <caption>#getMessage("visit_clinical_diagnosis")</caption>
+        <multiSelect>true</multiSelect>
+        <table>OS_VISIT_CLIN_DIAGNOSES</table>
         <column>CLINICAL_DIAGNOSIS</column>
+        <foreignKey>VISIT_ID</foreignKey>
+        <parentKey>IDENTIFIER</parentKey>
         <options>
           <!-- sql>select value from catissue_permissible_value where public_id = 'Clinical_Diagnosis_PID' order by sortorder, value</sql -->
-          <sql>select distinct CLINICAL_DIAGNOSIS from CATISSUE_SPECIMEN_COLL_GROUP</sql>
+          <sql>select distinct CLINICAL_DIAGNOSIS from OS_VISIT_CLIN_DIAGNOSES order by CLINICAL_DIAGNOSIS</sql>
         </options>
-      </dropDown>
+      </listBox>
     </row>
     <row>
       <dropDown>
@@ -253,6 +257,28 @@
                 <table>OS_SHIPMENTS</table>
                 <foreignKey>IDENTIFIER</foreignKey>
                 <parentKey>SHIPMENT_ID</parentKey>
+              </subForm>
+            </row>
+          </subForm>
+        </row>
+
+        <row>
+          <subForm>
+            <name>specimenKits</name>
+            <udn>specimenKits</udn>
+            <caption>#getMessage("specimen_kit_specimens")</caption>
+            <table>OS_KIT_SPECIMENS</table>
+            <foreignKey>SPECIMEN_ID</foreignKey>
+            <parentKey>IDENTIFIER</parentKey>
+
+            <row>
+              <subForm>
+                <name>specimenKit</name>
+                <udn>specimenKit</udn>
+                <caption>#getMessage("specimen_kit")</caption>
+                <table>OS_SPECIMEN_KITS</table>
+                <foreignKey>IDENTIFIER</foreignKey>
+                <parentKey>KIT_ID</parentKey>
               </subForm>
             </row>
           </subForm>

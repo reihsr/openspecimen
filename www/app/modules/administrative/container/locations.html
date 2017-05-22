@@ -12,17 +12,40 @@
           </button>
         </span>
       </div>
+
       <div class="os-container-vacate-cb">
-        <div class="checkbox">
-          <os-checkbox ng-model="lctx.input.vacateOccupants" ng-change="showUpdatedMap()"></os-checkbox>
+        <div ng-if="lctx.barcodingEnabled">
+          <div class="checkbox">
+            <os-checkbox ng-model="lctx.input.useBarcode" ng-change="showUpdatedMap()"></os-checkbox>
+          </div>
+          <div class="message">
+            <span translate="specimens.use_barcode">Use Barcode</span>
+          </div>
         </div>
-        <div class="message">
-          <span translate="container.vacate_positions">Vacate existing specimens</span>
+        <div ng-if="!ctx.dimless">
+          <div class="checkbox">
+            <os-checkbox ng-model="lctx.input.vacateOccupants" ng-change="showUpdatedMap()"></os-checkbox>
+          </div>
+          <div class="message">
+            <span translate="container.vacate_positions">Vacate existing specimens</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="map" ng-switch on='lctx.mapState'>
+    <div class="map" ng-if="ctx.dimless">
+      <div class="os-alert-container inline show">
+        <div class="alert alert-info">
+          <span translate="container.no_dimless_map">The map view is not available for dimensionless container</span>
+        </div>
+      </div>
+      <button class="btn btn-primary" ui-sref="container-detail.specimens({containerId: ctx.container.id})">
+        <span class="fa fa-flask"></span>
+        <span translate="container.view_specimens">View Specimens</span>
+      </button>
+    </div>
+
+    <div class="map" ng-switch on='lctx.mapState' ng-if="!ctx.dimless">
       <div ng-switch-when="loading">
         <div class="os-alert-container inline show">
           <div class="alert alert-info">
@@ -94,7 +117,14 @@
         </a>
       </span>
     </li>
-    <li class="item">
+
+    <li class="item" ng-if="!!lctx.entityInfo.specimen.barcode">
+      <strong class="key key-sm" translate="specimens.barcode">Barcode</strong>
+      <span class="value value-md">
+        {{lctx.entityInfo.specimen.barcode | osNoValue}}
+      </span>
+    </li>
+    <li class="item" ng-if="!lctx.entityInfo.specimen.$$specimenCentricCp">
       <strong class="key key-sm" translate="specimens.ppid">PPID</strong>
       <span class="value value-md">
         <a ui-sref="participant-detail.overview({
@@ -178,3 +208,4 @@
     </li>
   </ul>
 </script>
+

@@ -1,5 +1,11 @@
 package com.krishagni.catissueplus.core.biospecimen;
 
+import java.io.File;
+
+import org.apache.commons.lang3.StringUtils;
+
+import com.krishagni.catissueplus.core.common.util.ConfigUtil;
+
 public class ConfigParams {
 	public static final String MODULE = "biospecimen";
 
@@ -43,5 +49,31 @@ public class ConfigParams {
 
 	public static final String SYS_RPT_SETTINGS          = "sys_cp_rpt_settings";
 
+	public static final String SYS_SPMN_CP_RPT_SETTINGS  = "sys_spmn_cp_rpt_settings";
+
 	public static final String EXTRACT_SPR_TEXT          = "extract_spr_text";
+
+	public static final String PARTICIPANT_LOOKUP_FLOW   = "participant_lookup_flow";
+
+	public static final String CONSENTS_DIR              = "participant_consent_dir";
+
+	public static final String REL_SORTING_MAX_SPMNS     = "rel_sorting_max_spmns";
+
+	public static final String STAGED_PART_CLEANUP_INT   = "staged_part_cleanup_int";
+
+	public static String getConsentsDirPath() {
+		String path = ConfigUtil.getInstance().getStrSetting(MODULE, CONSENTS_DIR, null);
+		if (StringUtils.isBlank(path)) {
+			path = ConfigUtil.getInstance().getDataDir() + File.separator + "participant-consents";
+		}
+
+		File consentDir = new File(path);
+		if (!consentDir.exists()) {
+			consentDir.mkdirs();
+		}
+
+		return path + File.separator;
+	}
+
+	public static final String ENABLE_SPMN_BARCODING     = "enable_spmn_barcoding";
 }

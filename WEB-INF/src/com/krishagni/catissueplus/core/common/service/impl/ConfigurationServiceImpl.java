@@ -24,7 +24,9 @@ import org.apache.commons.lang3.LocaleUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.context.ApplicationListener;
 import org.springframework.context.MessageSource;
+import org.springframework.context.event.ContextRefreshedEvent;
 
 import com.krishagni.catissueplus.core.biospecimen.events.FileDetail;
 import com.krishagni.catissueplus.core.biospecimen.repository.DaoFactory;
@@ -46,13 +48,12 @@ import com.krishagni.catissueplus.core.common.util.AuthUtil;
 import com.krishagni.catissueplus.core.common.util.Status;
 import com.krishagni.catissueplus.core.common.util.Utility;
 
-public class ConfigurationServiceImpl implements ConfigurationService, InitializingBean {
+public class ConfigurationServiceImpl implements ConfigurationService, InitializingBean, ApplicationListener<ContextRefreshedEvent> {
 	
-	private Map<String, List<ConfigChangeListener>> changeListeners = 
-			new ConcurrentHashMap<String, List<ConfigChangeListener>>();
+	private Map<String, List<ConfigChangeListener>> changeListeners = new ConcurrentHashMap<>();
 	
 	private Map<String, Map<String, ConfigSetting>> configSettings;
-	
+
 	private DaoFactory daoFactory;
 	
 	private MessageSource messageSource;
@@ -328,7 +329,11 @@ public class ConfigurationServiceImpl implements ConfigurationService, Initializ
 				filename = value.substring(value.lastIndexOf(File.separator) + 1);
 				in = this.getClass().getResourceAsStream(value.substring(10));
 			} else {
-				File file = new File(getSettingFilesDir() + value);
+				File file = new File(value); // taking a chance whether setting was a string based before
+				if (!file.exists()) {
+					file = new File(getSettingFilesDir() + value);
+				}
+
 				contentType = Utility.getContentType(file);
 				filename = file.getName().substring(file.getName().indexOf("_") + 1);
 				in = new FileInputStream(file);
@@ -351,29 +356,29 @@ public class ConfigurationServiceImpl implements ConfigurationService, Initializ
 	@Override
 	@PlusTransactional
 	public void reload() {
-		Map<String, Map<String, ConfigSetting>> settingsMap = new ConcurrentHashMap<String, Map<String, ConfigSetting>>();
+		Map<String, Map<String, ConfigSetting>> settingsMap = new ConcurrentHashMap<>();
 		
 		List<ConfigSetting> settings = daoFactory.getConfigSettingDao().getAllSettings();
 		for (ConfigSetting setting : settings) {
-			ConfigProperty prop = setting.getProperty();			
+			ConfigProperty prop = setting.getProperty();
 			Hibernate.initialize(prop.getAllowedValues()); // pre-init
-						
+
 			Module module = prop.getModule();
-			
+
 			Map<String, ConfigSetting> moduleSettings = settingsMap.get(module.getName());
 			if (moduleSettings == null) {
-				moduleSettings = new ConcurrentHashMap<String, ConfigSetting>();
+				moduleSettings = new ConcurrentHashMap<>();
 				settingsMap.put(module.getName(), moduleSettings);
 			}
-			
-			moduleSettings.put(prop.getName(), setting);			
+
+			moduleSettings.put(prop.getName(), setting);
 		}
-		
+
 		this.configSettings = settingsMap;
 		
 		for (List<ConfigChangeListener> listeners : changeListeners.values()) {
 			for (ConfigChangeListener listener : listeners) {
-				listener.onConfigChange(null, null);
+				listener.onConfigChange(StringUtils.EMPTY, StringUtils.EMPTY);
 			}			
 		}
 	}
@@ -382,7 +387,7 @@ public class ConfigurationServiceImpl implements ConfigurationService, Initializ
 	public void registerChangeListener(String module, ConfigChangeListener callback) {
 		List<ConfigChangeListener> listeners = changeListeners.get(module);
 		if (listeners == null) {
-			listeners = new ArrayList<ConfigChangeListener>();
+			listeners = new ArrayList<>();
 			changeListeners.put(module, listeners);
 		}
 		
@@ -471,7 +476,34 @@ public class ConfigurationServiceImpl implements ConfigurationService, Initializ
 		
 		return getStrSetting("common", "data_dir", dataDir);
 	}
-				
+	
+	@Override
+	public Map<String, String> getPasswordSettings() {
+		Map<String, ConfigSetting> moduleConfig = configSettings.get("auth");
+		if (moduleConfig == null) {
+			return Collections.emptyMap();
+		}
+		
+		Map<String, String> result = new HashMap<>();
+		
+		ConfigSetting pattern = moduleConfig.get("password_pattern");
+		if (pattern != null) {
+			result.put("pattern", pattern.getValue());
+		}
+		
+		ConfigSetting desc = moduleConfig.get("password_rule");
+		if (desc != null) {
+			result.put("desc", desc.getValue());
+		}
+		
+		return result;
+	}
+
+	@Override
+	public boolean isOracle() {
+		return "oracle".equalsIgnoreCase(appProps.getProperty("database.type"));
+	}
+
 	@Override
 	public void afterPropertiesSet() throws Exception {
 		reload();
@@ -486,7 +518,21 @@ public class ConfigurationServiceImpl implements ConfigurationService, Initializ
 			}
 		});
 	}
-	
+
+	@Override
+	@PlusTransactional
+	public void onApplicationEvent(ContextRefreshedEvent event) {
+		reload();
+	}
+
+	@Override
+	public Map<String, String> getDeploymentSiteAssets() {
+		Map<String, String> result = new HashMap<>();
+		result.put("siteUrl", getDeploymentSiteUrl());
+		result.put("siteLogo", getDeploymentSiteLogo());
+		return result;
+	}
+
 	private boolean isValidSetting(ConfigProperty property, String setting) {
 		if (StringUtils.isBlank(setting)) {
 			return true;
@@ -585,5 +631,36 @@ public class ConfigurationServiceImpl implements ConfigurationService, Initializ
 		if (file.exists()) {
 			file.delete(); // Very dangerous to do! Should we just rename the file?
 		}
+	}
+
+	private String getDeploymentSiteUrl() {
+		Map<String, ConfigSetting> moduleConfig = configSettings.get("common");
+		if (moduleConfig == null) {
+			return null;
+		}
+
+		ConfigSetting url = moduleConfig.get("deployment_site_url");
+		return url != null ? url.getValue() : null;
+	}
+
+	private String getDeploymentSiteLogo() {
+		Map<String, ConfigSetting> moduleConfig = configSettings.get("common");
+		if (moduleConfig == null) {
+			return null;
+		}
+
+		String result = null;
+		ConfigSetting logo = moduleConfig.get("deployment_site_logo");
+		if (logo != null && StringUtils.isNotBlank(logo.getValue())) {
+			ConfigSetting appUrl = moduleConfig.get("app_url");
+			String prefix = "";
+			if (appUrl != null && StringUtils.isNotBlank(appUrl.getValue())) {
+				prefix = appUrl.getValue();
+			}
+
+			result = prefix + "/rest/ng/config-settings/deployment-site-logo";
+		}
+
+		return result;
 	}
 }

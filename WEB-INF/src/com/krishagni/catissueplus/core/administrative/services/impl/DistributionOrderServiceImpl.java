@@ -267,9 +267,9 @@ public class DistributionOrderServiceImpl implements DistributionOrderService, O
 	
 	@Override
 	@PlusTransactional
-	public ResponseEvent<List<DistributionOrderItemDetail>> getDistributedSpecimens(RequestEvent<List<String>> req) {
+	public ResponseEvent<List<DistributionOrderItemDetail>> getDistributedSpecimens(RequestEvent<SpecimenListCriteria> req) {
 		try {
-			List<Specimen> specimens = getReadAccessSpecimensByLabels(req.getPayload());
+			List<Specimen> specimens = getReadAccessSpecimens(req.getPayload());
 			if (CollectionUtils.isEmpty(specimens)) {
 				return ResponseEvent.response(Collections.EMPTY_LIST);
 			}
@@ -360,10 +360,6 @@ public class DistributionOrderServiceImpl implements DistributionOrderService, O
 		return getReadAccessSpecimens(new SpecimenListCriteria().ids(specimenIds));
 	}
 
-	private List<Specimen> getReadAccessSpecimensByLabels(List<String> specimenLabels) {
-		return getReadAccessSpecimens(new SpecimenListCriteria().labels(specimenLabels));
-	}
-
 	private List<Specimen> getReadAccessSpecimens(SpecimenListCriteria crit) {
 		List<Pair<Long, Long>> siteCpPairs = AccessCtrlMgr.getInstance().getReadAccessSpecimenSiteCps();
 		if (siteCpPairs != null && siteCpPairs.isEmpty()) {
@@ -378,6 +374,14 @@ public class DistributionOrderServiceImpl implements DistributionOrderService, O
 		List<Specimen> specimens = getReadAccessSpecimensByIds(specimenIds);
 		if (specimens == null) {
 			ose.addError(RbacErrorCode.ACCESS_DENIED);
+			return;
+		}
+
+		List<String> closedSpmns = specimens.stream()
+			.filter(spmn -> !spmn.isActive()).map(Specimen::getLabel)
+			.collect(Collectors.toList());
+		if (!closedSpmns.isEmpty()) {
+			ose.addError(DistributionOrderErrorCode.CLOSED_SPECIMENS, closedSpmns);
 			return;
 		}
 
@@ -401,6 +405,15 @@ public class DistributionOrderServiceImpl implements DistributionOrderService, O
 
 		if (StringUtils.isNotBlank(errorLabels)) {
 			ose.addError(DistributionOrderErrorCode.INVALID_SPECIMENS_FOR_DP, errorLabels);
+		}
+
+		int stmtsCount = order.getDistributionProtocol().getConsentTiers().size();
+		if (stmtsCount > 0) {
+			List<String> nonConsentingLabels = daoFactory.getDistributionProtocolDao()
+				.getNonConsentingSpecimens(order.getDistributionProtocol().getId(), specimenIds, stmtsCount);
+			if (!nonConsentingLabels.isEmpty()) {
+				ose.addError(DistributionOrderErrorCode.NON_CONSENTING_SPECIMENS, nonConsentingLabels);
+			}
 		}
 	}
 
@@ -624,10 +637,14 @@ public class DistributionOrderServiceImpl implements DistributionOrderService, O
 		//
 		// TODO: This is duplicate code. Need to consolidate this with specimen/container objects
 		//
-		String row = location.getPositionY(), column = location.getPositionX();
-		if (container.getPositionLabelingMode() == StorageContainer.PositionLabelingMode.LINEAR && location.getPosition() != 0) {
-			row    = String.valueOf((location.getPosition() - 1) / container.getNoOfColumns() + 1);
-			column = String.valueOf((location.getPosition() - 1) % container.getNoOfColumns() + 1);
+		String row = null, column = null;
+		if (!container.isDimensionless()) {
+			row = location.getPositionY();
+			column = location.getPositionX();
+			if (container.usesLinearLabelingMode() && location.getPosition() != null && location.getPosition() != 0) {
+				row = String.valueOf((location.getPosition() - 1) / container.getNoOfColumns() + 1);
+				column = String.valueOf((location.getPosition() - 1) % container.getNoOfColumns() + 1);
+			}
 		}
 
 		StorageContainerPosition position = null;

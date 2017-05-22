@@ -27,8 +27,8 @@ angular.module('os.biospecimen.specimenlist',
         template: '<div ui-view></div>',
         resolve: {
           list: function($stateParams, SpecimenList) {
-            if (!!$stateParams.listId || $stateParams.listId == 0) {
-              return SpecimenList.getById($stateParams.listId);
+            if (!!$stateParams.listId || $stateParams.listId === 0) {
+              return SpecimenList.getById($stateParams.listId, {includeSpecimens: false});
             }
 
             return new SpecimenList();
@@ -61,6 +61,11 @@ angular.module('os.biospecimen.specimenlist',
         url: '/specimen-list/:listId/addedit',
         templateUrl: 'modules/biospecimen/specimen-list/addedit.html',
         controller: 'AddEditSpecimenListCtrl',
+        resolve: {
+          barcodingEnabled: function(CollectionProtocol) {
+            return CollectionProtocol.getBarcodingEnabled();
+          }
+        },
         parent: 'specimen-list-root'
       });
   });

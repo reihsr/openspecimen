@@ -28,11 +28,11 @@ import com.krishagni.catissueplus.core.biospecimen.domain.Visit;
 import com.krishagni.catissueplus.core.biospecimen.domain.factory.SpecimenErrorCode;
 import com.krishagni.catissueplus.core.biospecimen.domain.factory.SpecimenFactory;
 import com.krishagni.catissueplus.core.biospecimen.domain.factory.VisitErrorCode;
+import com.krishagni.catissueplus.core.biospecimen.events.CpEntityDeleteCriteria;
 import com.krishagni.catissueplus.core.biospecimen.events.LabelPrintJobSummary;
 import com.krishagni.catissueplus.core.biospecimen.events.PrintSpecimenLabelDetail;
 import com.krishagni.catissueplus.core.biospecimen.events.ReceivedEventDetail;
 import com.krishagni.catissueplus.core.biospecimen.events.SpecimenAliquotsSpec;
-import com.krishagni.catissueplus.core.biospecimen.events.SpecimenDeleteCriteria;
 import com.krishagni.catissueplus.core.biospecimen.events.SpecimenDetail;
 import com.krishagni.catissueplus.core.biospecimen.events.SpecimenInfo;
 import com.krishagni.catissueplus.core.biospecimen.events.SpecimenQueryCriteria;
@@ -103,17 +103,19 @@ public class SpecimenServiceImpl implements SpecimenService, ObjectStateParamsRe
 	public ResponseEvent<SpecimenDetail> getSpecimen(RequestEvent<SpecimenQueryCriteria> req) {
 		try {
 			SpecimenQueryCriteria crit = req.getPayload();
-			
+
 			OpenSpecimenException ose = new OpenSpecimenException(ErrorType.USER_ERROR);
-			Specimen specimen = getSpecimen(crit.getId(), crit.getCpShortTitle(), crit.getName(), ose);
+			Specimen specimen = getSpecimen(crit.getId(), crit.getCpShortTitle(), crit.getName(), crit.getBarcode(), ose);
 			if (specimen == null) {
 				return ResponseEvent.error(ose);
 			}
-			
+
 			boolean allowPhi = AccessCtrlMgr.getInstance().ensureReadSpecimenRights(specimen);
 			SpecimenDetail detail = SpecimenDetail.from(specimen, false, !allowPhi);
 			setDistributionStatus(detail);
 			return ResponseEvent.response(detail);
+		} catch (OpenSpecimenException ose) {
+			return ResponseEvent.error(ose);
 		} catch (Exception e) {
 			return ResponseEvent.serverError(e);
 		}
@@ -121,10 +123,15 @@ public class SpecimenServiceImpl implements SpecimenService, ObjectStateParamsRe
 	
 	@Override
 	@PlusTransactional
-	public ResponseEvent<List<SpecimenInfo>> getSpecimens(RequestEvent<List<String>> req) {
+	public ResponseEvent<List<SpecimenInfo>> getSpecimens(RequestEvent<SpecimenListCriteria> req) {
 		try {
-			List<Specimen> specimens = getSpecimensByLabel(req.getPayload());
-			return ResponseEvent.response(SpecimenInfo.from(Specimen.sortByLabels(specimens, req.getPayload())));
+			SpecimenListCriteria crit = req.getPayload();
+			List<Specimen> specimens = getSpecimens(crit);
+			if (CollectionUtils.isNotEmpty(crit.labels())) {
+				return ResponseEvent.response(SpecimenInfo.from(Specimen.sortByLabels(specimens, crit.labels())));
+			}
+
+			return ResponseEvent.response(SpecimenInfo.from(specimens));
 		} catch (OpenSpecimenException ose) {
 			return ResponseEvent.error(ose);
 		} catch (Exception e) {
@@ -187,14 +194,25 @@ public class SpecimenServiceImpl implements SpecimenService, ObjectStateParamsRe
 		try {
 			SpecimenDetail detail = req.getPayload();
 			OpenSpecimenException ose = new OpenSpecimenException(ErrorType.USER_ERROR);
-			Specimen existing = getSpecimen(detail.getId(), detail.getCpShortTitle(), detail.getLabel(), ose);
-			if (existing == null) {
-				return ResponseEvent.error(ose);
-			}
-			
-			AccessCtrlMgr.getInstance().ensureCreateOrUpdateSpecimenRights(existing);
-			saveOrUpdate(detail, existing, null);
+			Specimen existing = updateSpecimen(detail, ose);
+			ose.checkAndThrow();
 			return ResponseEvent.response(SpecimenDetail.from(existing, false, false));
+		} catch (OpenSpecimenException ose) {
+			return ResponseEvent.error(ose);
+		} catch (Exception e) {
+			return ResponseEvent.serverError(e);
+		}
+	}
+
+	@Override
+	@PlusTransactional
+	public ResponseEvent<List<SpecimenInfo>> updateSpecimens(RequestEvent<List<SpecimenDetail>> req) {
+		try {
+			List<Specimen> savedSpmns = new ArrayList<>();
+			OpenSpecimenException ose = new OpenSpecimenException(ErrorType.USER_ERROR);
+			req.getPayload().forEach(spmn -> savedSpmns.add(updateSpecimen(spmn, ose)));
+			ose.checkAndThrow();
+			return ResponseEvent.response(SpecimenDetail.from(savedSpmns));
 		} catch (OpenSpecimenException ose) {
 			return ResponseEvent.error(ose);
 		} catch (Exception e) {
@@ -210,7 +228,7 @@ public class SpecimenServiceImpl implements SpecimenService, ObjectStateParamsRe
 
 			OpenSpecimenException ose = new OpenSpecimenException(ErrorType.USER_ERROR);
 			for (SpecimenStatusDetail detail : req.getPayload()) {
-				Specimen specimen = getSpecimen(detail.getId(), detail.getCpShortTitle(), detail.getName(), ose);
+				Specimen specimen = getSpecimen(detail.getId(), detail.getCpShortTitle(), detail.getName(), detail.getBarcode(), ose);
 				User user = getUser(detail.getUser(), ose);
 				Date date = getDisposalDate(specimen, detail.getDate(), ose);
 				ose.checkAndThrow();
@@ -230,12 +248,12 @@ public class SpecimenServiceImpl implements SpecimenService, ObjectStateParamsRe
 
 	@Override
 	@PlusTransactional
-	public ResponseEvent<List<SpecimenInfo>> deleteSpecimens(RequestEvent<List<SpecimenDeleteCriteria>> request) {
+	public ResponseEvent<List<SpecimenInfo>> deleteSpecimens(RequestEvent<List<CpEntityDeleteCriteria>> request) {
 		List<SpecimenInfo> result = new ArrayList<>();
 		OpenSpecimenException ose = new OpenSpecimenException(ErrorType.USER_ERROR);
 
-		for (SpecimenDeleteCriteria criteria : request.getPayload()) {
-			Specimen specimen = getSpecimen(criteria.getId(), criteria.getCpShortTitle(), criteria.getLabel(), ose);
+		for (CpEntityDeleteCriteria criteria : request.getPayload()) {
+			Specimen specimen = getSpecimen(criteria.getId(), criteria.getCpShortTitle(), criteria.getName(), ose);
 			if (specimen == null) {
 				continue;
 			}
@@ -254,7 +272,7 @@ public class SpecimenServiceImpl implements SpecimenService, ObjectStateParamsRe
 		try {
 			SpecimenQueryCriteria crit = req.getPayload();
 			OpenSpecimenException ose = new OpenSpecimenException(ErrorType.USER_ERROR);
-			Specimen specimen = getSpecimen(crit.getId(), crit.getCpShortTitle(), crit.getName(), ose);
+			Specimen specimen = getSpecimen(crit.getId(), crit.getCpShortTitle(), crit.getName(), crit.getBarcode(), ose);
 			if (specimen == null) {
 				return ResponseEvent.error(ose);
 			}
@@ -283,7 +301,6 @@ public class SpecimenServiceImpl implements SpecimenService, ObjectStateParamsRe
 				Specimen specimen = collectSpecimen(detail, null);
 				specimens.add(specimen);
 			}
-
 
 			getLabelPrinter().print(getSpecimenPrintItems(specimens));
 			return ResponseEvent.response(SpecimenDetail.from(specimens));
@@ -337,6 +354,16 @@ public class SpecimenServiceImpl implements SpecimenService, ObjectStateParamsRe
 				aliquot.setFreezeThawCycles(spec.getFreezeThawCycles());
 				aliquot.setIncrParentFreezeThaw(spec.getIncrParentFreezeThaw());
 				aliquot.setExtensionDetail(spec.getExtensionDetail());
+
+				if (StringUtils.isNotBlank(spec.getParentContainerName())) {
+					StorageLocationSummary containerLocation = new StorageLocationSummary();
+					containerLocation.setName(spec.getParentContainerName());
+					aliquot.setContainerLocation(containerLocation);
+				}
+
+				if (StringUtils.isNotBlank(spec.getContainerType())) {
+					aliquot.setContainerTypeName(spec.getContainerType());
+				}
 				
 				StorageLocationSummary location = new StorageLocationSummary();
 				location.setName(spec.getContainerName());
@@ -555,6 +582,17 @@ public class SpecimenServiceImpl implements SpecimenService, ObjectStateParamsRe
 		specimens.stream().forEach(spmn -> spmn.setDistributionStatus(distStatuses.get(spmn.getId())));
 	}
 
+	private Specimen updateSpecimen(SpecimenDetail detail, OpenSpecimenException ose) {
+		Specimen existing = getSpecimen(detail.getId(), detail.getCpShortTitle(), detail.getLabel(), detail.getBarcode(), ose);
+		if (existing == null) {
+			return null;
+		}
+
+		AccessCtrlMgr.getInstance().ensureCreateOrUpdateSpecimenRights(existing);
+		saveOrUpdate(detail, existing, null);
+		return existing;
+	}
+
 	private List<SpecimenInfo> flattenSpecimenTree(SpecimenDetail specimen) {
 		return flattenSpecimenTree(specimen, new ArrayList<>());
 	}
@@ -641,6 +679,19 @@ public class SpecimenServiceImpl implements SpecimenService, ObjectStateParamsRe
 		}
 	}
 
+	private void ensureContainerAccess(Specimen existing, Specimen specimen, OpenSpecimenException ose) {
+		if (existing != null) {
+			//
+			// for existing specimens, access rights is checked in transfer event
+			//
+			return;
+		}
+
+		if (specimen.getPosition() != null) {
+			AccessCtrlMgr.getInstance().ensureSpecimenStoreRights(specimen.getPosition().getContainer(), ose);
+		}
+	}
+
 	private Specimen collectSpecimen(SpecimenDetail detail, Specimen parent) {
 		Specimen existing = null;
 		if (detail.getId() != null) {
@@ -699,35 +750,43 @@ public class SpecimenServiceImpl implements SpecimenService, ObjectStateParamsRe
 		} else {
 			specimen = specimenFactory.createSpecimen(detail, parent);
 		}
-		
+
 		AccessCtrlMgr.getInstance().ensureCreateOrUpdateSpecimenRights(specimen);
 
 		OpenSpecimenException ose = new OpenSpecimenException(ErrorType.USER_ERROR);
 		ensureValidAndUniqueLabel(existing, specimen, ose);
 		ensureUniqueBarcode(existing, specimen, ose);
+		ensureContainerAccess(existing, specimen, ose);
 		ose.checkAndThrow();
+
+		//
+		// NOTE OPSMN-3468: setLabelIfEmpty() is strategically placed to ensure it is called late but
+		// before the specimen is associated to session to ensure specimen is not flushed
+		// to database
+		//
 
 		if (existing != null) {
 			existing.update(specimen);
 			specimen = existing;
+			specimen.setLabelIfEmpty();
 		} else if (specimen.getParentSpecimen() != null) {
 			if (!specimen.getParentSpecimen().isActive()) {
 				throw OpenSpecimenException.userError(SpecimenErrorCode.EDIT_NOT_ALLOWED, specimen.getParentSpecimen().getLabel());
 			}
 
+			specimen.setLabelIfEmpty();
 			specimen.getParentSpecimen().addChildSpecimen(specimen);
 		} else {
-			specimen.occupyPosition();
 			specimen.checkPoolStatusConstraints();
+			specimen.setLabelIfEmpty();
+			specimen.occupyPosition();
 		}
 
 		incrParentFreezeThawCycles(detail, specimen);
 
-		specimen.setLabelIfEmpty();
 		daoFactory.getSpecimenDao().saveOrUpdate(specimen);
-
 		specimen.addOrUpdateCollRecvEvents();
-		specimen.addOrUpdateExtension();		
+		specimen.addOrUpdateExtension();
 		return specimen;
 	}
 
@@ -804,6 +863,10 @@ public class SpecimenServiceImpl implements SpecimenService, ObjectStateParamsRe
 		return result;
 	}
 
+	private Specimen getSpecimen(Long specimenId, String cpShortTitle, String label, String barcode, OpenSpecimenException ose) {
+		return specimenResolver.getSpecimen(specimenId, cpShortTitle, label, barcode, ose);
+	}
+
 	private Specimen getSpecimen(Long specimenId, String cpShortTitle, String label, OpenSpecimenException ose) {
 		return specimenResolver.getSpecimen(specimenId, cpShortTitle, label, ose);
 	}
@@ -851,6 +914,12 @@ public class SpecimenServiceImpl implements SpecimenService, ObjectStateParamsRe
 	private Date getDisposalDate(Specimen specimen, Date disposalDate, OpenSpecimenException ose) {
 		if (disposalDate == null) {
 			return Calendar.getInstance().getTime();
+		} else if (specimen == null) {
+			//
+			// Error to have null specimen; therefore return whatever
+			// disposal date was given as input
+			//
+			return disposalDate;
 		}
 
 		if (specimen.isPrimary() && disposalDate.before(specimen.getCollectionEvent().getTime())) {

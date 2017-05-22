@@ -15,7 +15,7 @@
   
   <div class="container">
     <div os-wizard="shipWizard" type="classic">
-      <os-wizard-step title="{{'shipments.details' | translate}}" on-finish="passThrough()">
+      <os-wizard-step title="{{'shipments.details' | translate}}" on-finish="initSpmnOpts(forward)">
         <div ng-include src="'shipment/addedit-detail.html'"></div>
       </os-wizard-step>
 
@@ -206,10 +206,13 @@
       </span>
     </div>
 
-    <os-add-items ng-if="!shipment.request && shipment.status != 'Shipped'" 
-      item-list="shipment.shipmentItems" on-add="addSpecimens(itemLabels)"
+    <os-add-specimens ng-if="!shipment.request && shipment.status != 'Shipped'"
+      on-add="addSpecimens(specimens)" ctrl="input" filter-opts="spmnOpts.filters" error-opts="spmnOpts.error"
       placeholder="{{'shipments.enter_specimen_label' | translate}}">
-    </os-add-items>
+      <button class="btn btn-primary" ng-click="validateSpecimens(input.ctrl)">
+        <span translate="common.buttons.validate">Validate</span>
+      </button>
+    </os-add-specimens>
 
     <table class="os-table os-dist-spmns-table bulk-edit os-border os-table-muted-hdr"
       ng-if="shipment.shipmentItems && shipment.shipmentItems.length > 0">
@@ -267,6 +270,9 @@
               <div class="pull-left" style="padding-left: 12px;">
                 <a ui-sref="specimen({specimenId: specimen.id})">
                   <span>{{specimen.label}}</span>
+                  <span ng-if="!!specimen.barcode">
+                    ({{specimen.barcode}})
+                  </span>
                 </a>
               </div>
             </div>
@@ -299,7 +305,8 @@
           </td>
           <td class="col" style="overflow: visible;" ng-if="shipment.status == 'Shipped'">
             <os-storage-position os-md-input
-              entity="specimen" cp-id="specimen.cpId" container-list-cache="containerListCache" hide-placeholder>
+              entity="specimen" cp-id="specimen.cpId" container-list-cache="containerListCache"
+              site="shipment.receivingSite" hide-placeholder>
             </os-storage-position>
           </td>
           <td class="col" style="overflow: visible;" ng-if="shipment.status == 'Shipped'">

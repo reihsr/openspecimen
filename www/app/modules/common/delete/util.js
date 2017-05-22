@@ -43,16 +43,27 @@ angular.module('os.common.delete')
     function confirmDelete(opts) {
       var modalInstance = $modal.open({
         templateUrl: opts.templateUrl,
-        controller: function($scope, $modalInstance) {
+        controller: function($scope, $modalInstance, dependentEntities) {
+          $scope.dependentEntities = dependentEntities;
           $scope.entity = opts.entity;
           $scope.props = opts.props;
-          
+
           $scope.ok = function() {
             $modalInstance.close(true);
           }
 
           $scope.cancel = function() {
             $modalInstance.dismiss('cancel');
+          }
+        },
+        resolve: {
+          //
+          // Default behaviour is to delete record without checks for
+          // dependent records. In order to check for dependent records
+          // before deleting, set opts.deleteWithoutCheck = false.
+          //
+          dependentEntities: function() {
+            return opts.deleteWithoutCheck === false && opts.entity ? opts.entity.getDependentEntities() : [];
           }
         }
       });
@@ -67,6 +78,7 @@ angular.module('os.common.delete')
     function bulkDelete(object, entityIds, props) {
       var confirmDelete = props.confirmDelete || 'delete_entity.confirm_delete';
       var successMessage = props.successMessage || 'delete_entity.entity_deleted';
+      var pendingMessage = props.pendingMessage || 'delete_entity.delete_pending';
       var modalInstance = $modal.open({
         templateUrl: 'modules/common/delete/modal.html',
         controller: 'EntityDeleteCtrl',
@@ -76,7 +88,9 @@ angular.module('os.common.delete')
               entity: object,
               entityIds: entityIds,
               confirmDelete: confirmDelete,
-              successMessage: successMessage
+              successMessage: successMessage,
+              pendingMessage: pendingMessage,
+              bulkDelete: true
             }
           },
           dependentEntities: function() {

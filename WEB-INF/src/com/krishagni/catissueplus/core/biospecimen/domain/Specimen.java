@@ -25,6 +25,7 @@ import com.krishagni.catissueplus.core.administrative.domain.StorageContainerPos
 import com.krishagni.catissueplus.core.administrative.domain.User;
 import com.krishagni.catissueplus.core.biospecimen.domain.factory.SpecimenErrorCode;
 import com.krishagni.catissueplus.core.biospecimen.domain.factory.SpecimenReturnEvent;
+import com.krishagni.catissueplus.core.common.access.AccessCtrlMgr;
 import com.krishagni.catissueplus.core.common.errors.OpenSpecimenException;
 import com.krishagni.catissueplus.core.common.events.DependentEntityDetail;
 import com.krishagni.catissueplus.core.common.service.LabelGenerator;
@@ -90,6 +91,8 @@ public class Specimen extends BaseExtensionEntity {
 
 	private Integer freezeThawCycles;
 
+	private CollectionProtocol collectionProtocol;
+
 	private Visit visit;
 
 	private SpecimenRequirement specimenRequirement;
@@ -120,7 +123,7 @@ public class Specimen extends BaseExtensionEntity {
 	
 	private List<SpecimenTransferEvent> transferEvents;
 	
-	private Set<SpecimenList> specimenLists =  new HashSet<SpecimenList>();
+	private Set<SpecimenListItem> specimenListItems =  new HashSet<>();
 	
 	private boolean concentrationInit = false;
 
@@ -144,13 +147,11 @@ public class Specimen extends BaseExtensionEntity {
 
 	public void setTissueSite(String tissueSite) {
 		if (StringUtils.isNotBlank(this.tissueSite) && !this.tissueSite.equals(tissueSite)) {
-			for (Specimen child : getChildCollection()) {
-				child.setTissueSite(tissueSite);
-			}
+			getChildCollection().stream()
+				.filter(child -> child.isAliquot() || this.tissueSite.equals(child.getTissueSite()))
+				.forEach(child -> child.setTissueSite(tissueSite));
 			
-			for (Specimen poolSpecimen : getSpecimensPool()) {
-				poolSpecimen.setTissueSite(tissueSite);
-			}
+			getSpecimensPool().forEach(poolSpmn -> poolSpmn.setTissueSite(tissueSite));
 		}
 		
 		this.tissueSite = tissueSite;
@@ -162,13 +163,11 @@ public class Specimen extends BaseExtensionEntity {
 
 	public void setTissueSide(String tissueSide) {
 		if (StringUtils.isNotBlank(this.tissueSide) && !this.tissueSide.equals(tissueSide)) {
-			for (Specimen child : getChildCollection()) {
-				child.setTissueSide(tissueSide);
-			}
+			getChildCollection().stream()
+				.filter(child -> child.isAliquot() || this.tissueSide.equals(child.getTissueSide()))
+				.forEach(child -> child.setTissueSide(tissueSide));
 			
-			for (Specimen poolSpecimen : getSpecimensPool()) {
-				poolSpecimen.setTissueSide(tissueSide);
-			}
+			getSpecimensPool().forEach(poolSpmn -> poolSpmn.setTissueSide(tissueSide));
 		}
 		
 		this.tissueSide = tissueSide;
@@ -368,6 +367,14 @@ public class Specimen extends BaseExtensionEntity {
 		this.freezeThawCycles = freezeThawCycles;
 	}
 
+	public CollectionProtocol getCollectionProtocol() {
+		return collectionProtocol;
+	}
+
+	public void setCollectionProtocol(CollectionProtocol collectionProtocol) {
+		this.collectionProtocol = collectionProtocol;
+	}
+
 	public Visit getVisit() {
 		return visit;
 	}
@@ -495,12 +502,12 @@ public class Specimen extends BaseExtensionEntity {
 	}
 	
 	@NotAudited
-	public Set<SpecimenList> getSpecimenLists() {
-		return specimenLists;
+	public Set<SpecimenListItem> getSpecimenListItems() {
+		return specimenListItems;
 	}
 
-	public void setSpecimenLists(Set<SpecimenList> specimenLists) {
-		this.specimenLists = specimenLists;
+	public void setSpecimenListItems(Set<SpecimenListItem> specimenListItems) {
+		this.specimenListItems = specimenListItems;
 	}
 
 	public LabelGenerator getLabelGenerator() {
@@ -613,7 +620,12 @@ public class Specimen extends BaseExtensionEntity {
 	public static boolean isMissed(String status) {
 		return MISSED_COLLECTION.equals(status);
 	}
-	
+
+	public boolean isPrePrintEnabled() {
+		return getSpecimenRequirement() != null &&
+			getSpecimenRequirement().getLabelAutoPrintModeToUse() == CollectionProtocol.SpecimenLabelAutoPrintMode.PRE_PRINT;
+	}
+
 	public void close(User user, Date time, String reason) {
 		if (!getActivityStatus().equals(Status.ACTIVITY_STATUS_ACTIVE.getStatus())) {
 			return;
@@ -646,7 +658,13 @@ public class Specimen extends BaseExtensionEntity {
 
 	public void update(Specimen specimen) {
 		setForceDelete(specimen.isForceDelete());
-		updateStatus(specimen.getActivityStatus(), null);
+
+		String reason = null;
+		if (!StringUtils.equals(getComment(), specimen.getComment())) {
+			reason = specimen.getComment();
+		}
+
+		updateStatus(specimen.getActivityStatus(), reason);
 		if (!isActive()) {
 			return;
 		}
@@ -656,6 +674,7 @@ public class Specimen extends BaseExtensionEntity {
 		setInitialQuantity(specimen.getInitialQuantity());
 		setAvailableQuantity(specimen.getAvailableQuantity());
 
+		updatePosition(specimen.getPosition());
 		updateEvent(getCollectionEvent(), specimen.getCollectionEvent());
 		updateEvent(getReceivedEvent(), specimen.getReceivedEvent());
 		updateCollectionStatus(specimen.getCollectionStatus());
@@ -672,7 +691,7 @@ public class Specimen extends BaseExtensionEntity {
 
 		// TODO: Specimen class/type should not be allowed to change
 		Specimen spmnToUpdateFrom = null;
-		if (isAliquot() || isDerivative()) {
+		if (isAliquot()) {
 			spmnToUpdateFrom = getParentSpecimen();
 		} else if (isPoolSpecimen()) {
 			spmnToUpdateFrom = getPooledSpecimen();
@@ -682,11 +701,6 @@ public class Specimen extends BaseExtensionEntity {
 
 		setTissueSite(spmnToUpdateFrom.getTissueSite());
 		setTissueSide(spmnToUpdateFrom.getTissueSide());
-		
-		if (isDerivative()) {
-			spmnToUpdateFrom = specimen;
-		}
-		
 		setSpecimenClass(spmnToUpdateFrom.getSpecimenClass());
 		setSpecimenType(spmnToUpdateFrom.getSpecimenType());
 		updateBiohazards(spmnToUpdateFrom.getBiohazards());
@@ -697,11 +711,10 @@ public class Specimen extends BaseExtensionEntity {
 		setExtension(specimen.getExtension());
 		setPrintLabel(specimen.isPrintLabel());
 		setFreezeThawCycles(specimen.getFreezeThawCycles());
-		updatePosition(specimen.getPosition());
 	}
 	
 	public void updateStatus(String activityStatus, String reason){
-		updateStatus(activityStatus, AuthUtil.getCurrentUser(), Calendar.getInstance().getTime(), reason, false);
+		updateStatus(activityStatus, AuthUtil.getCurrentUser(), Calendar.getInstance().getTime(), reason, isForceDelete());
 	}
 	
 	//
@@ -856,25 +869,38 @@ public class Specimen extends BaseExtensionEntity {
 	
 	private void transferTo(StorageContainerPosition newPosition, Date time) {
 		StorageContainerPosition oldPosition = getPosition();
-		if (same(oldPosition, newPosition)) {
+		if (StorageContainerPosition.areSame(oldPosition, newPosition)) {
 			return;
 		}
-		
+
+		if (oldPosition != null) {
+			AccessCtrlMgr.getInstance().ensureSpecimenStoreRights(oldPosition.getContainer());
+		}
+
+		if (newPosition != null) {
+			AccessCtrlMgr.getInstance().ensureSpecimenStoreRights(newPosition.getContainer());
+		}
+
 		SpecimenTransferEvent transferEvent = new SpecimenTransferEvent(this);
 		transferEvent.setUser(AuthUtil.getCurrentUser());
 		transferEvent.setTime(time == null ? Calendar.getInstance().getTime() : time);
 		
 		if (oldPosition != null && newPosition != null) {
+			oldPosition.getContainer().retrieveSpecimen(this);
+			newPosition.getContainer().storeSpecimen(this);
+
 			transferEvent.setFromPosition(oldPosition);
 			transferEvent.setToPosition(newPosition);
-			
+
 			oldPosition.update(newPosition);			
 		} else if (oldPosition != null) {
+			oldPosition.getContainer().retrieveSpecimen(this);
 			transferEvent.setFromPosition(oldPosition);
-			
+
 			oldPosition.vacate();
 			setPosition(null);
-		} else if (oldPosition == null && newPosition != null) {
+		} else if (newPosition != null) {
+			newPosition.getContainer().storeSpecimen(this);
 			transferEvent.setToPosition(newPosition);
 			
 			newPosition.setOccupyingSpecimen(this);
@@ -884,7 +910,7 @@ public class Specimen extends BaseExtensionEntity {
 		
 		transferEvent.saveOrUpdate();		
 	}
-	
+
 	public void addChildSpecimen(Specimen specimen) {
 		specimen.setParentSpecimen(this);				
 		if (specimen.isAliquot()) {
@@ -903,10 +929,6 @@ public class Specimen extends BaseExtensionEntity {
 		specimen.setPooledSpecimen(this);
 		specimen.occupyPosition();
 		getSpecimensPool().add(specimen);
-	}
-	
-	public CollectionProtocol getCollectionProtocol() {
-		return getVisit().getCollectionProtocol();
 	}
 	
 	public void setPending() {
@@ -929,7 +951,8 @@ public class Specimen extends BaseExtensionEntity {
 			position = null;
 			return;
 		}
-				
+
+		position.getContainer().storeSpecimen(this);
 		position.occupy();
 	}
 	
@@ -993,8 +1016,11 @@ public class Specimen extends BaseExtensionEntity {
 	}
 	
 	public void updatePosition(StorageContainerPosition newPosition, Date time) {
-		if (newPosition != null && newPosition.getPosOneOrdinal() == 0 && newPosition.getPosTwoOrdinal() == 0) {
-			newPosition = null;
+		if (newPosition != null) {
+			StorageContainer container = newPosition.getContainer();
+			if (container == null || (!container.isDimensionless() && !newPosition.isSpecified())) {
+				newPosition = null;
+			}
 		}
 
 		transferTo(newPosition, time);
@@ -1218,24 +1244,7 @@ public class Specimen extends BaseExtensionEntity {
 			te.delete();
 		}
 	}
-	
-	private boolean same(StorageContainerPosition p1, StorageContainerPosition p2) {
-		if (p1 == null && p2 == null) {
-			return true;
-		}
-		
-		if (p1 == null || p2 == null) {
-			return false;
-		}
-		
-		if (!p1.getContainer().equals(p2.getContainer())) {
-			return false;
-		}
-		
-		return p1.getPosOneOrdinal() == p2.getPosOneOrdinal() &&
-				p1.getPosTwoOrdinal() == p2.getPosTwoOrdinal();
-	}
-	
+
 	private void adjustParentSpecimenQty(BigDecimal qty) {
 		BigDecimal parentQty = parentSpecimen.getAvailableQuantity();
 		if (parentQty == null || NumUtil.isZero(parentQty)) {

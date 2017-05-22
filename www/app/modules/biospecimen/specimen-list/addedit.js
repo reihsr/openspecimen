@@ -1,14 +1,23 @@
 angular.module('os.biospecimen.specimenlist.addedit', ['os.biospecimen.models'])
   .controller('AddEditSpecimenListCtrl', function(
-    $scope, $state, list, SpecimenList, SpecimensHolder, DeleteUtil, SpecimenUtil, Util) {
+    $scope, $state, list, barcodingEnabled, SpecimenList, SpecimensHolder, DeleteUtil, SpecimenUtil, Util) {
  
     function init() { 
       $scope.list = list;
-      $scope.list.specimens = SpecimensHolder.getSpecimens() || list.specimens;
       $scope.list.isAllowedToDeleteList = isAllowedToDeleteList(); 
-      $scope.isQueryOrSpecimenPage =  SpecimensHolder.getSpecimens() != undefined;
-      SpecimensHolder.setSpecimens(undefined);
-      $scope.input = {labelText: ''};
+
+      $scope.input = {
+        labelText: '',
+        barcodingEnabled: barcodingEnabled,
+        useBarcode: false
+      };
+
+      if (SpecimensHolder.getSpecimens() != undefined) {
+        $scope.isQueryOrSpecimenPage =  true;
+        $scope.input.specimenIds = SpecimensHolder.getSpecimens().map(function(spmn) { return spmn.id; });
+        SpecimensHolder.setSpecimens(undefined);
+      }
+
     }
 
     function isAllowedToDeleteList() {
@@ -17,48 +26,24 @@ angular.module('os.biospecimen.specimenlist.addedit', ['os.biospecimen.models'])
               ($scope.list.owner.id == $scope.currentUser.id || $scope.currentUser.admin)
     }
 
-    function getAddedSpecimens(specimens) {
-      if (specimens.length == 0) {
-        return [];
+    function updateSpecimenList(specimenList, labels) {
+      if (!labels || labels.length == 0) {
+        return specimenList.$saveOrUpdate();
       }
 
-      if (!$scope.list.specimens || $scope.list.specimens.length == 0) {
-        return specimens;
+      var filterOpts = {};
+      if (!!$scope.input.useBarcode) {
+        filterOpts.barcode = labels;
+        labels = undefined;
       }
 
-      var map = $scope.list.specimens.reduce(function(map, spmn) {
-        map[spmn.id] = spmn;
-        return map;
-      }, {});
-
-      var addedSpmns = [];
-      angular.forEach(specimens, function(spmn) {
-        if (!map[spmn.id]) {
-          addedSpmns.push(spmn);
-          map[spmn.id] = spmn;
-        }
-      });
-
-      return addedSpmns;
-    }
-
-    function updateSpecimenList(specimenList, labels, status) {
-      return SpecimenUtil.getSpecimens(labels).then(
+      return SpecimenUtil.getSpecimens(labels, filterOpts).then(
         function(specimens) {
           if (!specimens) {
             return undefined;
           }
 
-          var addedSpmns = getAddedSpecimens(specimens);
-          if (addedSpmns.length == 0 && !!specimenList.id) {
-            status.patched = true;
-            return specimenList.$patch(specimenList);
-          }
-
-          specimenList.specimens = $scope.list.specimens || [];
-          Util.appendAll(specimenList.specimens, addedSpmns);
-          status.patched = false;
-
+          specimenList.specimenIds = specimens.map(function(spmn) { return spmn.id; });
           return specimenList.$saveOrUpdate();
         }
       );
@@ -66,6 +51,7 @@ angular.module('os.biospecimen.specimenlist.addedit', ['os.biospecimen.models'])
 
     $scope.saveOrUpdateList = function() {
       var labels = Util.splitStr($scope.input.labelText, /,|\t|\n/);
+      var promise = undefined;
 
       var sharedWith = $scope.list.sharedWith.map(
         function(user) { 
@@ -77,18 +63,11 @@ angular.module('os.biospecimen.specimenlist.addedit', ['os.biospecimen.models'])
         id: $scope.list.id,
         name: $scope.list.name,
         description: $scope.list.description,
-        sharedWith: sharedWith
+        sharedWith: sharedWith,
+        specimenIds: $scope.input.specimenIds || []
       });
 
-      var status = {patched: false};
-      var promise = undefined;
-      if (labels.length == 0 && !!specimenList.id) {
-        promise = specimenList.$patch(specimenList);
-        status.patched = true;
-      } else {
-        promise = updateSpecimenList(specimenList, labels, status);
-      }
-
+      var promise = updateSpecimenList(specimenList, labels);
       promise.then(
         function(savedList) {
           if (!savedList) {
@@ -98,10 +77,6 @@ angular.module('os.biospecimen.specimenlist.addedit', ['os.biospecimen.models'])
           if ($scope.isQueryOrSpecimenPage) {
             $scope.back();
           } else {
-            if (!status.patched) {
-              $scope.list.specimens = savedList.specimens;
-            }
-
             $state.go('specimen-list', {listId: savedList.id});
           }
         }

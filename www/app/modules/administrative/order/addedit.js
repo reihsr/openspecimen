@@ -7,6 +7,7 @@ angular.module('os.administrative.order.addedit', ['os.administrative.models', '
     var ignoreQtyWarning = false;
 
     function init() {
+      $scope.input = {};
       $scope.order = order;
 
       order.request = spmnRequest;
@@ -76,7 +77,8 @@ angular.module('os.administrative.order.addedit', ['os.administrative.models', '
     function getOrderItems(specimens) {
       return specimens.filter(
         function(specimen) {
-          return specimen.availableQty == undefined || specimen.availableQty > 0;
+          return (specimen.availableQty == undefined || specimen.availableQty > 0) &&
+                 specimen.activityStatus == 'Active';
         }
       ).map(
         function(specimen) {
@@ -203,6 +205,20 @@ angular.module('os.administrative.order.addedit', ['os.administrative.models', '
       }
     }
 
+    function getValidationMsgKeys(useBarcode) {
+      return {
+        title:         'orders.specimen_validation.title',
+        foundCount:    'orders.specimen_validation.found_count',
+        notFoundCount: 'orders.specimen_validation.not_found_count',
+        notFoundError: 'orders.specimen_validation.not_found_error',
+        extraCount:    'orders.specimen_validation.extra_count',
+        extraError:    'orders.specimen_validation.extra_error',
+        itemLabel:     useBarcode ? 'specimens.barcode' : 'specimens.label',
+        error:         'common.error',
+        reportCopied:  'orders.specimen_validation.report_copied'
+      }
+    }
+
     $scope.onDpSelect = function() {
       if (!!spmnRequest) {
         return;
@@ -221,18 +237,14 @@ angular.module('os.administrative.order.addedit', ['os.administrative.models', '
       $scope.order.requester = '';
     }
 
-    $scope.addSpecimens = function(labels) {
-      return SpecimenUtil.getSpecimens(labels).then(
-        function (specimens) {
-          if (!specimens) {
-            return false;
-          }
+    $scope.addSpecimens = function(specimens) {
+      if (!specimens) {
+        return false;
+      }
 
-          ignoreQtyWarning = false;
-          Util.addIfAbsent($scope.order.orderItems, getOrderItems(specimens), 'specimen.id');
-          return true;
-        }
-      );
+      ignoreQtyWarning = false;
+      Util.addIfAbsent($scope.order.orderItems, getOrderItems(specimens), 'specimen.id');
+      return true;
     }
 
     $scope.removeOrderItem = function(orderItem) {
@@ -319,6 +331,12 @@ angular.module('os.administrative.order.addedit', ['os.administrative.models', '
       }
 
       $scope.setStatus(item);
+    }
+
+    $scope.validateSpecimens = function(ctrl) {
+      var prop = ctrl.useBarcode() ? 'specimen.barcode' : 'specimen.label';
+      var result = Util.validateItems($scope.order.orderItems, ctrl.getLabels(), prop);
+      Util.showItemsValidationResult(getValidationMsgKeys(ctrl.useBarcode()), result);
     }
     
     init();

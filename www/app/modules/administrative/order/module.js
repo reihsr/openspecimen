@@ -17,7 +17,8 @@ angular.module('os.administrative.order',
           $scope.orderResource = {
             createOpts: {resource: 'Order', operations: ['Create']},
             updateOpts: {resource: 'Order', operations: ['Update']},
-            deleteOpts: {resource: 'Order', operations: ['Delete']}
+            deleteOpts: {resource: 'Order', operations: ['Delete']},
+            importOpts: {resource: 'Order', operations: ['Bulk Import']}
           }
         },
         parent: 'signed-in'
@@ -121,6 +122,11 @@ angular.module('os.administrative.order',
         url: '/return-specimens',
         templateUrl: 'modules/administrative/order/return-specimens.html',
         controller: 'OrderReturnSpecimensCtrl',
+        resolve: {
+          barcodingEnabled: function(CollectionProtocol) {
+            return CollectionProtocol.getBarcodingEnabled();
+          }
+        },
         parent: 'order-root'
       });
   })

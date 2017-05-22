@@ -52,7 +52,7 @@ public class MasterSpecimenDetail {
 	
 	private String status;
 	
-	private String clinicalDiagnosis;
+	private Set<String> clinicalDiagnoses;
 	
 	private String clinicalStatus;
 	
@@ -63,6 +63,8 @@ public class MasterSpecimenDetail {
 	private String reqCode;
 	
 	private String label;
+
+	private String barcode;
 	
 	private String specimenClass;
 	
@@ -127,7 +129,13 @@ public class MasterSpecimenDetail {
 	}
 
 	public Date getRegistrationDate() {
-		return registrationDate;
+		if (registrationDate != null) {
+			return registrationDate;
+		} else if (visitDate != null) {
+			return visitDate;
+		} else {
+			return collectionDate;
+		}
 	}
 
 	public void setRegistrationDate(Date registrationDate) {
@@ -263,7 +271,11 @@ public class MasterSpecimenDetail {
 	}
 
 	public Date getVisitDate() {
-		return visitDate;
+		if (visitDate != null) {
+			return visitDate;
+		} else {
+			return collectionDate;
+		}
 	}
 
 	public void setVisitDate(Date visitDate) {
@@ -286,12 +298,12 @@ public class MasterSpecimenDetail {
 		this.status = status;
 	}
 
-	public String getClinicalDiagnosis() {
-		return clinicalDiagnosis;
+	public Set<String> getClinicalDiagnoses() {
+		return clinicalDiagnoses;
 	}
 
-	public void setClinicalDiagnosis(String clinicalDiagnosis) {
-		this.clinicalDiagnosis = clinicalDiagnosis;
+	public void setClinicalDiagnoses(Set<String> clinicalDiagnoses) {
+		this.clinicalDiagnoses = clinicalDiagnoses;
 	}
 
 	public String getClinicalStatus() {
@@ -332,6 +344,14 @@ public class MasterSpecimenDetail {
 
 	public void setLabel(String label) {
 		this.label = label;
+	}
+
+	public String getBarcode() {
+		return barcode;
+	}
+
+	public void setBarcode(String barcode) {
+		this.barcode = barcode;
 	}
 
 	public String getSpecimenClass() {

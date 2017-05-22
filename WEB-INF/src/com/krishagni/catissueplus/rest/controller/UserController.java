@@ -1,8 +1,9 @@
 package com.krishagni.catissueplus.rest.controller;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Collections;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -24,11 +25,13 @@ import com.krishagni.catissueplus.core.administrative.events.UserDetail;
 import com.krishagni.catissueplus.core.administrative.repository.UserListCriteria;
 import com.krishagni.catissueplus.core.administrative.services.UserService;
 import com.krishagni.catissueplus.core.auth.services.UserAuthenticationService;
+import com.krishagni.catissueplus.core.common.events.BulkEntityDetail;
 import com.krishagni.catissueplus.core.common.events.DeleteEntityOp;
 import com.krishagni.catissueplus.core.common.events.DependentEntityDetail;
 import com.krishagni.catissueplus.core.common.events.RequestEvent;
 import com.krishagni.catissueplus.core.common.events.ResponseEvent;
 import com.krishagni.catissueplus.core.common.events.UserSummary;
+import com.krishagni.catissueplus.core.common.util.Status;
 import com.krishagni.rbac.events.SubjectRoleDetail;
 
 @Controller
@@ -195,8 +198,8 @@ public class UserController {
 		
 		return resp.getPayload();
 	}
-	
-	
+
+
 	@RequestMapping(method = RequestMethod.PUT, value = "/{id}/activity-status")
 	@ResponseBody
 	@ResponseStatus(HttpStatus.OK)
@@ -208,6 +211,16 @@ public class UserController {
 		ResponseEvent<UserDetail> resp = userService.updateStatus(req);
 		resp.throwErrorIfUnsuccessful();
 		
+		return resp.getPayload();
+	}
+
+	@RequestMapping(method = RequestMethod.PUT, value = "/bulk-update")
+	@ResponseBody
+	@ResponseStatus(HttpStatus.OK)
+	public List<UserDetail> bulkUpdateUsers(@RequestBody BulkEntityDetail<UserDetail> detail) {
+		ResponseEvent<List<UserDetail>> resp = userService.bulkUpdateUsers(new RequestEvent<>(detail));
+		resp.throwErrorIfUnsuccessful();
+
 		return resp.getPayload();
 	}
 
@@ -225,13 +238,29 @@ public class UserController {
 	@RequestMapping(method = RequestMethod.DELETE, value = "/{id}")
 	@ResponseBody
 	@ResponseStatus(HttpStatus.OK)
-	public UserDetail deleteUser(@PathVariable Long id,
-			@RequestParam(value = "close", required = false, defaultValue = "false") boolean close) {
-		DeleteEntityOp deleteEntityOp = new DeleteEntityOp(id, close);
+	public UserDetail deleteUser(@PathVariable Long id) {
+		DeleteEntityOp deleteEntityOp = new DeleteEntityOp(id, false);
 		RequestEvent<DeleteEntityOp> req = new RequestEvent<DeleteEntityOp>(deleteEntityOp);
 		ResponseEvent<UserDetail> resp = userService.deleteUser(req);
 		resp.throwErrorIfUnsuccessful();
-		
+
+		return resp.getPayload();
+	}
+
+	@RequestMapping(method = RequestMethod.DELETE)
+	@ResponseBody
+	@ResponseStatus(HttpStatus.OK)
+	public List<UserDetail> deleteUsers(@RequestParam(value = "id") Long[] ids) {
+		UserDetail userDetail = new UserDetail();
+		userDetail.setActivityStatus(Status.ACTIVITY_STATUS_DISABLED.getStatus());
+
+		BulkEntityDetail<UserDetail> detail = new BulkEntityDetail<>();
+		detail.setIds(Arrays.asList(ids));
+		detail.setDetail(userDetail);
+
+		ResponseEvent<List<UserDetail>> resp = userService.bulkUpdateUsers(new RequestEvent<>(detail));
+		resp.throwErrorIfUnsuccessful();
+
 		return resp.getPayload();
 	}
 	

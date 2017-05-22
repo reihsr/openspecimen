@@ -1,6 +1,9 @@
 
 package com.krishagni.catissueplus.core.biospecimen.repository;
 
+import com.krishagni.catissueplus.core.administrative.repository.AutoFreezerProviderDao;
+import com.krishagni.catissueplus.core.administrative.repository.ContainerStoreListDao;
+import com.krishagni.catissueplus.core.administrative.repository.ContainerTypeDao;
 import com.krishagni.catissueplus.core.administrative.repository.DistributionOrderDao;
 import com.krishagni.catissueplus.core.administrative.repository.DistributionProtocolDao;
 import com.krishagni.catissueplus.core.administrative.repository.DpRequirementDao;
@@ -11,64 +14,81 @@ import com.krishagni.catissueplus.core.administrative.repository.ShipmentDao;
 import com.krishagni.catissueplus.core.administrative.repository.SiteDao;
 import com.krishagni.catissueplus.core.administrative.repository.SpecimenRequestDao;
 import com.krishagni.catissueplus.core.administrative.repository.StorageContainerDao;
-import com.krishagni.catissueplus.core.administrative.repository.ContainerTypeDao;
+import com.krishagni.catissueplus.core.administrative.repository.StorageContainerPositionDao;
 import com.krishagni.catissueplus.core.administrative.repository.UserDao;
 import com.krishagni.catissueplus.core.audit.repository.AuditDao;
 import com.krishagni.catissueplus.core.auth.repository.AuthDao;
 import com.krishagni.catissueplus.core.common.repository.ConfigSettingDao;
+import com.krishagni.catissueplus.core.common.repository.UnhandledExceptionDao;
 import com.krishagni.catissueplus.core.common.repository.UniqueIdGenerator;
 import com.krishagni.catissueplus.core.common.repository.UpgradeLogDao;
 
 public interface DaoFactory {
-	public CollectionProtocolDao getCollectionProtocolDao();
+	CollectionProtocolDao getCollectionProtocolDao();
 
-	public ParticipantDao getParticipantDao();
+	ParticipantDao getParticipantDao();
 
-	public CollectionProtocolRegistrationDao getCprDao();
+	StagedParticipantDao getStagedParticipantDao();
 
-	public SiteDao getSiteDao();
+	CollectionProtocolRegistrationDao getCprDao();
 
-	public SpecimenDao getSpecimenDao();
+	AnonymizeEventDao getAnonymizeEventDao();
+
+	SiteDao getSiteDao();
+
+	SpecimenDao getSpecimenDao();
 	
-	public SpecimenRequirementDao getSpecimenRequirementDao();
+	SpecimenRequirementDao getSpecimenRequirementDao();
 
-	public VisitsDao getVisitsDao();
+	VisitsDao getVisitsDao();
 
-	public UserDao getUserDao();
+	UserDao getUserDao();
 	
-	public AuthDao getAuthDao();
+	AuthDao getAuthDao();
 
-	public UniqueIdGenerator getUniqueIdGenerator();
+	UniqueIdGenerator getUniqueIdGenerator();
 
-	public InstituteDao getInstituteDao();
+	InstituteDao getInstituteDao();
 
-	public StorageContainerDao getStorageContainerDao();
+	StorageContainerDao getStorageContainerDao();
+
+	StorageContainerPositionDao getStorageContainerPositionDao();
 	
-	public ContainerTypeDao getContainerTypeDao();
+	ContainerTypeDao getContainerTypeDao();
 
-	public DistributionProtocolDao getDistributionProtocolDao();
+	DistributionProtocolDao getDistributionProtocolDao();
 
-	public SpecimenListDao getSpecimenListDao();
+	SpecimenListDao getSpecimenListDao();
 
-	public PermissibleValueDao getPermissibleValueDao();
-	
-	public ScheduledJobDao getScheduledJobDao();
-	
-	public DistributionOrderDao getDistributionOrderDao();
-	
-	public ConfigSettingDao getConfigSettingDao();
-	
-	public LabelPrintJobDao getLabelPrintJobDao();
-	
-	public AuditDao getAuditDao();
+	SpecimenKitDao getSpecimenKitDao();
 
-	public DpRequirementDao getDistributionProtocolRequirementDao();
+	PermissibleValueDao getPermissibleValueDao();
 	
-	public ShipmentDao getShipmentDao();
-
-	public SpecimenRequestDao getSpecimenRequestDao();
+	ScheduledJobDao getScheduledJobDao();
 	
-	public UpgradeLogDao getUpgradeLogDao();
+	DistributionOrderDao getDistributionOrderDao();
+	
+	ConfigSettingDao getConfigSettingDao();
+	
+	LabelPrintJobDao getLabelPrintJobDao();
+	
+	AuditDao getAuditDao();
 
-	public CpReportSettingsDao getCpReportSettingsDao();
+	DpRequirementDao getDistributionProtocolRequirementDao();
+	
+	ShipmentDao getShipmentDao();
+
+	SpecimenRequestDao getSpecimenRequestDao();
+	
+	UpgradeLogDao getUpgradeLogDao();
+
+	CpReportSettingsDao getCpReportSettingsDao();
+	
+	UnhandledExceptionDao getUnhandledExceptionDao();
+
+	ConsentStatementDao getConsentStatementDao();
+
+	ContainerStoreListDao getContainerStoreListDao();
+
+	AutoFreezerProviderDao getAutoFreezerProviderDao();
 } 

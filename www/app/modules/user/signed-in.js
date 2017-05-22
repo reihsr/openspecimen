@@ -6,14 +6,16 @@ angular.module('openspecimen')
        $scope.userCtx = {
          hasPhiAccess: AuthorizationService.hasPhiAccess()
        }
-       
-       getTrainingUrl();
+
+       setSetting('training', 'training_url', 'trainingUrl');
+       setSetting('training', 'help_link',    'helpUrl');
+       setSetting('training', 'forum_link',   'forumUrl');
      }
-     
-     function getTrainingUrl() {
-       SettingUtil.getSetting("training", "training_url").then(
+
+     function setSetting(module, settingName, propName) {
+       SettingUtil.getSetting(module, settingName).then(
          function(setting) {
-           $scope.userCtx.trainingUrl = setting.value;
+           $scope.userCtx[propName] = setting.value;
          }
        );
      }
@@ -24,6 +26,7 @@ angular.module('openspecimen')
      $scope.orderReadOpts = {resource: 'Order', operations: ['Read']};
      $scope.shipmentReadOpts = {resource: 'ShippingAndTracking', operations: ['Read']};
      $scope.scheduledJobReadOpts = {resource: 'ScheduledJob', operations: ['Read']};
+     $scope.dpReadOpts = {resource: 'DistributionProtocol', operations: ['Read']};
 
      init();
   })

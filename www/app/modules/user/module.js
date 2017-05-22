@@ -18,10 +18,27 @@ angular.module('openspecimen')
         parent: 'default'
       })
       .state('login', {
-        url: '/?logout',
+        url: '/?logout&directVisit',
         templateUrl: 'modules/user/signin.html',
         controller: 'LoginCtrl',
-        parent: 'default-nav-buttons'
+        parent: 'default-nav-buttons',
+        data: {
+          redirect: false
+        },
+        resolve: {
+          defCatalogId: function($injector) {
+            if (!$injector.has('scCatalog')) {
+              return null;
+            }
+
+            var scCatalog = $injector.get('scCatalog');
+            return scCatalog.loadDefCatalogId().then(
+              function(catalogId) {
+                return scCatalog.defCatalogId;
+              }
+            );
+          }
+        }
       })
       .state('forgot-password', {
         url: '/forgot-password',
@@ -33,7 +50,10 @@ angular.module('openspecimen')
         url: '/reset-password',
         templateUrl: 'modules/user/reset-password.html',
         controller: 'ResetPasswordCtrl',
-        parent: 'default-nav-buttons'
+        parent: 'default-nav-buttons',
+        data: {
+          redirect: false
+        }
       })
       .state('sign-up', {
         url: '/sign-up',
@@ -47,6 +67,9 @@ angular.module('openspecimen')
         resolve: {
           user: function(User) {
             return new User();
+          },
+          users: function() {
+            return [];
           }
         },
         controller: 'UserAddEditCtrl',

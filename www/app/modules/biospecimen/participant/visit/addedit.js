@@ -1,7 +1,7 @@
 
 angular.module('os.biospecimen.visit.addedit', [])
   .controller('AddEditVisitCtrl', function(
-    $scope, $state, $stateParams, cpr, visit, extensionCtxt, hasDict,
+    $scope, $state, $stateParams, cp, cpr, visit, latestVisit, extensionCtxt, hasDict,
     PvManager, ExtensionsUtil) {
 
     function loadPvs() {
@@ -14,18 +14,22 @@ angular.module('os.biospecimen.visit.addedit', [])
       angular.extend(currVisit, {cprId: cpr.id, cpTitle: cpr.cpTitle});
 
       $scope.visitCtx = {
-        obj: {visit: $scope.currVisit}, inObjs: ['visit']
+        obj: {visit: $scope.currVisit, cp: cp}, inObjs: ['visit']
       }
 
       if (!currVisit.id) {
-        angular.extend(currVisit, {visitDate: currVisit.anticipatedVisitDate || new Date(), status: 'Complete'});
+        angular.extend(currVisit, {
+          visitDate: currVisit.anticipatedVisitDate || new Date(),
+          status: 'Complete',
+          clinicalDiagnosis: latestVisit ? latestVisit.clinicalDiagnosis : currVisit.clinicalDiagnosis
+        });
         delete currVisit.anticipatedVisitDate;
       }
 
       if ($stateParams.missedVisit == 'true') {
         angular.extend(currVisit, {status: 'Missed Collection'});
       } else if ($stateParams.newVisit == 'true') {
-        angular.extend(currVisit, {id: undefined, name: undefined, status: 'Complete'});
+        angular.extend(currVisit, {id: undefined, name: undefined, status: 'Complete', visitDate: new Date()});
       }
 
       $scope.deFormCtrl = {};

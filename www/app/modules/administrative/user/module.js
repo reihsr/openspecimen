@@ -21,7 +21,8 @@ angular.module('os.administrative.user',
           $scope.userResource = {
             createOpts: {resource: 'User', operations: ['Create']},
             updateOpts: {resource: 'User', operations: ['Update']},
-            deleteOpts: {resource: 'User', operations: ['Delete']}
+            deleteOpts: {resource: 'User', operations: ['Delete']},
+            importOpts: {resource: 'User', operations: ['Bulk Import']}
           }
         },
         parent: 'signed-in'
@@ -37,10 +38,30 @@ angular.module('os.administrative.user',
         templateUrl: 'modules/administrative/user/addedit.html',
         resolve: {
           user: function($stateParams, User) {
-            if ($stateParams.userId) { 
+            if ($stateParams.userId) {
               return User.getById($stateParams.userId);
             }
+
             return new User();
+          },
+          users: function() {
+            return [];
+          }
+        },
+        controller: 'UserAddEditCtrl',
+        parent: 'user-root'
+      })
+      .state('user-bulk-edit', {
+        url: '/bulk-edit-users',
+        templateUrl: 'modules/administrative/user/bulk-edit.html',
+        resolve: {
+          user: function(User) {
+            return new User();
+          },
+          users: function(ItemsHolder) {
+            var users = ItemsHolder.getItems('users');
+            ItemsHolder.setItems('users', undefined);
+            return users;
           }
         },
         controller: 'UserAddEditCtrl',

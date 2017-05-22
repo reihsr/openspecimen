@@ -36,9 +36,9 @@ public class StorageContainerSummary extends AttributeModifiedSupport {
 
 	private UserSummary createdBy;
 	
-	private int noOfColumns;
+	private Integer noOfColumns;
 	
-	private int noOfRows;
+	private Integer noOfRows;
 
 	private String positionLabelingMode;
 
@@ -46,13 +46,17 @@ public class StorageContainerSummary extends AttributeModifiedSupport {
 
 	private String rowLabelingScheme;
 
-	private int freePositions;
+	private Integer freePositions;
 	
 	private Boolean storeSpecimensEnabled;
 
 	private Integer capacity;
 
 	private Integer storedSpecimens;
+
+	private Boolean automated;
+
+	private String autoFreezerProvider;
 	
 	private List<StorageContainerSummary> childContainers;
 
@@ -128,19 +132,19 @@ public class StorageContainerSummary extends AttributeModifiedSupport {
 		this.createdBy = createdBy;
 	}
 	
-	public int getNoOfColumns() {
+	public Integer getNoOfColumns() {
 		return noOfColumns;
 	}
 
-	public void setNoOfColumns(int noOfColumns) {
+	public void setNoOfColumns(Integer noOfColumns) {
 		this.noOfColumns = noOfColumns;
 	}
 
-	public int getNoOfRows() {
+	public Integer getNoOfRows() {
 		return noOfRows;
 	}
 
-	public void setNoOfRows(int noOfRows) {
+	public void setNoOfRows(Integer noOfRows) {
 		this.noOfRows = noOfRows;
 	}
 
@@ -168,11 +172,11 @@ public class StorageContainerSummary extends AttributeModifiedSupport {
 		this.rowLabelingScheme = rowLabelingScheme;
 	}
 
-	public int getFreePositions() {
+	public Integer getFreePositions() {
 		return freePositions;
 	}
 
-	public void setFreePositions(int freePositions) {
+	public void setFreePositions(Integer freePositions) {
 		this.freePositions = freePositions;
 	}
 
@@ -207,6 +211,22 @@ public class StorageContainerSummary extends AttributeModifiedSupport {
 		this.storedSpecimens = storedSpecimens;
 	}
 
+	public Boolean getAutomated() {
+		return automated;
+	}
+
+	public void setAutomated(Boolean automated) {
+		this.automated = automated;
+	}
+
+	public String getAutoFreezerProvider() {
+		return autoFreezerProvider;
+	}
+
+	public void setAutoFreezerProvider(String autoFreezerProvider) {
+		this.autoFreezerProvider = autoFreezerProvider;
+	}
+
 	public List<StorageContainerSummary> getChildContainers() {
 		return childContainers;
 	}
@@ -233,6 +253,11 @@ public class StorageContainerSummary extends AttributeModifiedSupport {
 		result.setRowLabelingScheme(container.getRowLabelingScheme());
 		result.setFreePositions(container.freePositionsCount());
 		result.setStoreSpecimensEnabled(container.isStoreSpecimenEnabled());
+		result.setAutomated(container.isAutomated());
+
+		if (container.getAutoFreezerProvider() != null) {
+			result.setAutoFreezerProvider(container.getAutoFreezerProvider().getName());
+		}
 		
 		if (container.getType() != null) {
 			result.setTypeId(container.getType().getId());

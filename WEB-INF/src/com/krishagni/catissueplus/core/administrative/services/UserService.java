@@ -11,6 +11,7 @@ import com.krishagni.catissueplus.core.administrative.events.InstituteDetail;
 import com.krishagni.catissueplus.core.administrative.events.PasswordDetails;
 import com.krishagni.catissueplus.core.administrative.events.UserDetail;
 import com.krishagni.catissueplus.core.administrative.repository.UserListCriteria;
+import com.krishagni.catissueplus.core.common.events.BulkEntityDetail;
 import com.krishagni.catissueplus.core.common.events.DeleteEntityOp;
 import com.krishagni.catissueplus.core.common.events.DependentEntityDetail;
 import com.krishagni.catissueplus.core.common.events.RequestEvent;
@@ -38,6 +39,8 @@ public interface UserService extends UserDetailsService, SAMLUserDetailsService 
 	public ResponseEvent<Boolean> changePassword(RequestEvent<PasswordDetails> req);
 
 	public ResponseEvent<Boolean> forgotPassword(RequestEvent<String> req);
+
+	public ResponseEvent<List<UserDetail>> bulkUpdateUsers(RequestEvent<BulkEntityDetail<UserDetail>> req);
 	
 	public ResponseEvent<List<DependentEntityDetail>> getDependentEntities(RequestEvent<Long> req);
 

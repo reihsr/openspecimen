@@ -1,6 +1,8 @@
 package com.krishagni.catissueplus.core.biospecimen.events;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonFilter;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -43,6 +45,10 @@ public class CollectionProtocolDetail extends CollectionProtocolSummary {
 	private Boolean manualVisitNameEnabled;
 	
 	private Boolean manualSpecLabelEnabled;
+
+	private Boolean bulkPartRegEnabled;
+
+	private Boolean barcodingEnabled;
 
 	private String containerSelectionStrategy;
 
@@ -195,6 +201,22 @@ public class CollectionProtocolDetail extends CollectionProtocolSummary {
 		this.manualSpecLabelEnabled = manualSpecLabelEnabled;
 	}
 
+	public Boolean getBulkPartRegEnabled() {
+		return bulkPartRegEnabled;
+	}
+
+	public void setBulkPartRegEnabled(Boolean bulkPartRegEnabled) {
+		this.bulkPartRegEnabled = bulkPartRegEnabled;
+	}
+
+	public Boolean getBarcodingEnabled() {
+		return barcodingEnabled;
+	}
+
+	public void setBarcodingEnabled(Boolean barcodingEnabled) {
+		this.barcodingEnabled = barcodingEnabled;
+	}
+
 	public String getContainerSelectionStrategy() {
 		return containerSelectionStrategy;
 	}
@@ -298,6 +320,9 @@ public class CollectionProtocolDetail extends CollectionProtocolSummary {
 		result.setManualPpidEnabled(cp.isManualPpidEnabled());
 		result.setManualVisitNameEnabled(cp.isManualVisitNameEnabled());
 		result.setManualSpecLabelEnabled(cp.isManualSpecLabelEnabled());
+		result.setBulkPartRegEnabled(cp.isBulkPartRegEnabled());
+		result.setSpecimenCentric(cp.isSpecimenCentric());
+		result.setBarcodingEnabled(cp.isBarcodingEnabled());
 		result.setContainerSelectionStrategy(cp.getContainerSelectionStrategy());
 		result.setAliquotsInSameContainer(cp.getAliquotsInSameContainer());
 		result.setVisitNamePrintMode(cp.getVisitNamePrintMode().name());
@@ -315,5 +340,8 @@ public class CollectionProtocolDetail extends CollectionProtocolSummary {
 		
 		return result;
 	}
-	
+
+	public static List<CollectionProtocolDetail> from(Collection<CollectionProtocol> cps) {
+		return cps.stream().map(CollectionProtocolDetail::from).collect(Collectors.toList());
+	}
 }

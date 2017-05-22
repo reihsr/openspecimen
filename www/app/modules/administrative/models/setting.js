@@ -41,6 +41,14 @@ angular.module('os.administrative.models.setting', ['os.common.models'])
       );
     };
 
+    Setting.getDeploymentSiteAssets = function() {
+      return $http.get(Setting.url() + 'deployment-site-assets').then(
+        function(resp) {
+          return resp.data;
+        }
+      );
+    };
+
     Setting.updateSetting = function(setting) {
       return $http.put(Setting.url(), setting).then(
         function(resp) {
@@ -52,6 +60,14 @@ angular.module('os.administrative.models.setting', ['os.common.models'])
     Setting.getFileUploadUrl = function() {
       return Setting.url() + "files";
     }
+
+    Setting.getPasswordSettings = function () {
+      return $http.get(Setting.url() + 'password').then(
+        function (resp) {
+          return resp.data;
+        }
+      );
+    };
 
     Setting.prototype.getFileDownloadUrl = function() {
       return Setting.url() + "files?module=" + this.module + "&property=" + this.name;

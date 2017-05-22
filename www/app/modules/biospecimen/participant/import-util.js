@@ -46,6 +46,7 @@ angular.module('os.biospecimen.participant')
         }
       ]);
 
+      addForms(importTypes, group, 'CommonParticipant', entityForms['CommonParticipant']);
       return addForms(importTypes, group, 'Participant', entityForms['Participant']);
     } 
 
@@ -55,7 +56,7 @@ angular.module('os.biospecimen.participant')
       return addForms(importTypes, group, 'SpecimenCollectionGroup', entityForms['SpecimenCollectionGroup']);
     }
 
-    function getSpecimenTypes(entityForms) {
+    function getSpecimenTypes(cp, entityForms) {
       var group = $translate.instant('specimens.title');
 
       var importTypes = [];
@@ -69,10 +70,14 @@ angular.module('os.biospecimen.participant')
         group: group, type: 'specimenDerivative', title: 'specimens.spmn_derivatives',
         showImportType: false, importType    : 'CREATE'
       });
-      importTypes.push({
-        group: group, type: 'masterSpecimen', title: 'participant.master_specimens',
-        showImportType: false, importType    : 'CREATE'
-      });
+
+      if (!cp.specimenCentric) {
+        importTypes.push({
+          group: group, type: 'masterSpecimen', title: 'participant.master_specimens',
+          showImportType: false, importType    : 'CREATE'
+        });
+      }
+
       importTypes.push({
         group: group, type: 'specimenDisposal', title: 'participant.specimen_disposal',
         showImportType: false, importType    : 'UPDATE'
@@ -102,16 +107,16 @@ angular.module('os.biospecimen.participant')
       });
 
       var importTypes = [];
-      if (allowedEntityTypes.indexOf('Participant') >= 0) {
+      if (!cp.specimenCentric && allowedEntityTypes.indexOf('Participant') >= 0) {
         importTypes = importTypes.concat(getParticipantTypes(entityForms, cp.id));
       }
 
-      if (allowedEntityTypes.indexOf('SpecimenCollectionGroup') >= 0) {
+      if (!cp.specimenCentric && allowedEntityTypes.indexOf('SpecimenCollectionGroup') >= 0) {
         importTypes = importTypes.concat(getVisitTypes(entityForms));
       }
 
       if (allowedEntityTypes.indexOf('Specimen') >= 0) {
-        importTypes = importTypes.concat(getSpecimenTypes(entityForms));
+        importTypes = importTypes.concat(getSpecimenTypes(cp, entityForms));
       }
 
       angular.forEach(importTypes,

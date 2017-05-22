@@ -5,13 +5,16 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.codehaus.jackson.annotate.JsonIgnore;
 
 import com.krishagni.catissueplus.core.administrative.events.Mergeable;
 import com.krishagni.catissueplus.core.biospecimen.domain.CollectionProtocolRegistration;
-import com.krishagni.catissueplus.core.biospecimen.domain.ConsentTier;
 import com.krishagni.catissueplus.core.biospecimen.domain.ConsentTierResponse;
+import com.krishagni.catissueplus.core.biospecimen.domain.CpConsentTier;
 import com.krishagni.catissueplus.core.common.AttributeModifiedSupport;
 import com.krishagni.catissueplus.core.common.ListenAttributeChanges;
 import com.krishagni.catissueplus.core.common.events.UserSummary;
@@ -134,33 +137,37 @@ public class ConsentDetail extends AttributeModifiedSupport implements Mergeable
 		this.response = response;
 	}
 
-	public static ConsentDetail fromCpr(CollectionProtocolRegistration cpr) {
+	public static ConsentDetail fromCpr(CollectionProtocolRegistration cpr, boolean excludePhi) {
 		ConsentDetail consent = new ConsentDetail();
 		consent.setConsentSignatureDate(cpr.getConsentSignDate());
 		consent.setComments(cpr.getConsentComments());
 		
 		String fileName = cpr.getSignedConsentDocumentName();
 		if (fileName != null) {
-			fileName = fileName.split("_", 2)[1];
+			fileName = excludePhi ? "###" : fileName.split("_", 2)[1];
 		}
 		consent.setConsentDocumentName(fileName);
 		
 		if (cpr.getConsentWitness() != null) {
 			consent.setWitness(UserSummary.from(cpr.getConsentWitness()));
 		}
-		
-		for (ConsentTier consentTier : cpr.getCollectionProtocol().getConsentTier()) {
+
+		Map<String, ConsentTierResponse> respMap = cpr.getConsentResponses().stream()
+			.collect(Collectors.toMap(ConsentTierResponse::getStatementCode, item -> item));
+
+		for (CpConsentTier consentTier : cpr.getCollectionProtocol().getConsentTier()) {
 			ConsentTierResponseDetail response = new ConsentTierResponseDetail();
-			response.setStatement(consentTier.getStatement());
-			for (ConsentTierResponse resp : cpr.getConsentResponses()) {
-				if (consentTier.getStatement().equals(resp.getConsentTier().getStatement())) {
-					response.setResponse(resp.getResponse());
-					break;
-				}
+			response.setCode(consentTier.getStatement().getCode());
+			response.setStatement(consentTier.getStatement().getStatement());
+
+			ConsentTierResponse answer = respMap.get(consentTier.getStatement().getCode());
+			if (answer != null) {
+				response.setResponse(answer.getResponse());
 			}
-			
+
 			consent.getConsentTierResponses().add(response);
 		}
+
 		return consent;
 	}
 
@@ -172,6 +179,10 @@ public class ConsentDetail extends AttributeModifiedSupport implements Mergeable
 
 	@Override
 	public void merge(ConsentDetail other) {
+		if (StringUtils.isBlank(other.getStatement())) {
+			return;
+		}
+
 		ConsentTierResponseDetail response = new ConsentTierResponseDetail();
 		response.setStatement(other.getStatement());
 		response.setResponse(other.getResponse());

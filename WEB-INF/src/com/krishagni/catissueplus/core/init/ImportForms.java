@@ -4,6 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -19,6 +20,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.krishagni.catissueplus.core.administrative.domain.User;
 import com.krishagni.catissueplus.core.administrative.repository.UserDao;
 import com.krishagni.catissueplus.core.common.service.TemplateService;
+import com.krishagni.catissueplus.core.common.util.AuthUtil;
 import com.krishagni.catissueplus.core.common.util.Utility;
 import com.krishagni.catissueplus.core.de.repository.DaoFactory;
 
@@ -97,18 +99,23 @@ public abstract class ImportForms implements InitializingBean {
 			@Override
 			public Void doInTransaction(TransactionStatus status) {
 				try {
+					AuthUtil.setCurrentUser(getSystemUser());
 					importForms(formFiles);
 					return null;
 				} catch (Exception e) {
 					status.setRollbackOnly();
-					throw new RuntimeException(e);					
-				}				
+					throw new RuntimeException(e);
+				} finally {
+					AuthUtil.clearCurrentUser();
+				}
 			}
 		});
 	}
 	
 	protected abstract Collection<String> listFormFiles() throws IOException;
 	
+	protected abstract boolean isSysForm(String formFile);
+
 	protected abstract FormContextBean getFormContext(String formFile, Long formId);
 
 	protected void saveOrUpdateFormCtx(String formFile, Long formId) {
@@ -118,26 +125,39 @@ public abstract class ImportForms implements InitializingBean {
 	protected abstract void cleanup();
 
 	protected Map<String, Object> getTemplateProps() {
-		return new HashMap<String, Object>();
+		return new HashMap<>();
 	}
 
 	private void importForms(Collection<String> formFiles)
 	throws Exception {
-		User sysUser = userDao.getSystemUser();
-		UserContext userCtx = getUserContext(sysUser);
+		UserContext userCtx = getUserContext(getSystemUser());
 
 		for (String formFile : formFiles) {
 			InputStream in = null;
 			try {
 				in = preprocessForms(formFile);
-				String existingDigest = daoFactory.getFormDao().getFormChangeLogDigest(formFile);
+
+				Object[] changeLog = daoFactory.getFormDao().getLatestFormChangeLog(formFile);
+				String existingDigest  = (changeLog != null) ? (String) changeLog[2] : null;
 				String newDigest = Utility.getInputStreamDigest(in);
 				if (existingDigest != null && existingDigest.equals(newDigest)) {
-					continue;
+					continue; // form XML has not got modified since last import
+				}
+
+				Long formId     = (changeLog != null) ? (Long) changeLog[1] : null;
+				Date importDate = (changeLog != null) ? (Date) changeLog[3] : null;
+				if (!isSysForm(formFile) && formId != null && importDate != null) {
+					//
+					// Non system form. Need to check whether the form got modified since last import
+					//
+					Date updateDate = daoFactory.getFormDao().getUpdateTime(formId);
+					if (updateDate != null && updateDate.after(importDate)) {
+						continue;
+					}
 				}
 
 				in.reset();
-				Long formId = Container.createContainer(userCtx, in, isCreateTable());
+				formId = Container.createContainer(userCtx, in, isCreateTable());
 				saveOrUpdateFormCtx(formFile, formId);
 				daoFactory.getFormDao().insertFormChangeLog(formFile, newDigest, formId);
 			} finally {
@@ -163,6 +183,10 @@ public abstract class ImportForms implements InitializingBean {
 				return null;
 			}
 		};
+	}
+
+	private User getSystemUser() {
+		return userDao.getSystemUser();
 	}
 
 	private InputStream preprocessForms(String formFile) {

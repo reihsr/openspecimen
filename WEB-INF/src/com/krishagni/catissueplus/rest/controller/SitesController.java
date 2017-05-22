@@ -1,11 +1,10 @@
 
 package com.krishagni.catissueplus.rest.controller;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
-import javax.servlet.http.HttpServletRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -24,10 +23,12 @@ import com.krishagni.catissueplus.core.administrative.events.SiteQueryCriteria;
 import com.krishagni.catissueplus.core.administrative.events.SiteSummary;
 import com.krishagni.catissueplus.core.administrative.repository.SiteListCriteria;
 import com.krishagni.catissueplus.core.administrative.services.SiteService;
+import com.krishagni.catissueplus.core.common.events.BulkEntityDetail;
 import com.krishagni.catissueplus.core.common.events.DeleteEntityOp;
 import com.krishagni.catissueplus.core.common.events.DependentEntityDetail;
 import com.krishagni.catissueplus.core.common.events.RequestEvent;
 import com.krishagni.catissueplus.core.common.events.ResponseEvent;
+import com.krishagni.catissueplus.core.common.util.Status;
 import com.krishagni.catissueplus.core.de.services.FormService;
 
 @Controller
@@ -40,9 +41,6 @@ public class SitesController {
 	@Autowired
 	private FormService formSvc;
 
-	@Autowired
-	private HttpServletRequest httpServletRequest;
-	
 	@RequestMapping(method = RequestMethod.GET)
 	@ResponseStatus(HttpStatus.OK)
 	@ResponseBody
@@ -71,6 +69,12 @@ public class SitesController {
 			@RequestParam(value = "listAll", required = false, defaultValue = "false")
 			boolean listAll,
 
+			@RequestParam(value = "includeType", required = false)
+			List<String> includeTypes,
+
+			@RequestParam(value = "excludeType", required = false)
+			List<String> excludeTypes,
+
 			@RequestParam(value = "includeStats", required = false, defaultValue = "false")
 			boolean includeStats) {
 		
@@ -83,6 +87,8 @@ public class SitesController {
 			.startAt(startAt)
 			.maxResults(maxResults)
 			.listAll(listAll)
+			.includeTypes(includeTypes)
+			.excludeTypes(excludeTypes)
 			.includeStat(includeStats);
 		
 		RequestEvent<SiteListCriteria> req = new RequestEvent<>(crit);
@@ -121,7 +127,7 @@ public class SitesController {
 		SiteQueryCriteria crit = new SiteQueryCriteria();
 		crit.setId(id);
 		
-		RequestEvent<SiteQueryCriteria> req = new RequestEvent<SiteQueryCriteria>(crit);
+		RequestEvent<SiteQueryCriteria> req = new RequestEvent<>(crit);
 		ResponseEvent<SiteDetail> resp = siteService.getSite(req);
 		resp.throwErrorIfUnsuccessful();
 		
@@ -135,7 +141,7 @@ public class SitesController {
 		SiteQueryCriteria crit = new SiteQueryCriteria();
 		crit.setName(name);
 
-		RequestEvent<SiteQueryCriteria> req = new RequestEvent<SiteQueryCriteria>(crit);
+		RequestEvent<SiteQueryCriteria> req = new RequestEvent<>(crit);
 		ResponseEvent<SiteDetail> resp = siteService.getSite(req);
 		resp.throwErrorIfUnsuccessful();
 		
@@ -147,7 +153,7 @@ public class SitesController {
 	@ResponseStatus(HttpStatus.OK)
 	@ResponseBody
 	public SiteDetail createSite(@RequestBody SiteDetail siteDetail) {
-		RequestEvent<SiteDetail> req = new RequestEvent<SiteDetail>(siteDetail);
+		RequestEvent<SiteDetail> req = new RequestEvent<>(siteDetail);
 		ResponseEvent<SiteDetail> resp = siteService.createSite(req);
 		resp.throwErrorIfUnsuccessful();
 		
@@ -160,7 +166,7 @@ public class SitesController {
 	public SiteDetail updateSite(@PathVariable Long id, @RequestBody SiteDetail siteDetail) {
 		siteDetail.setId(id);
 		
-		RequestEvent<SiteDetail> req = new RequestEvent<SiteDetail>(siteDetail);
+		RequestEvent<SiteDetail> req = new RequestEvent<>(siteDetail);
 		ResponseEvent<SiteDetail> resp = siteService.updateSite(req);
 		resp.throwErrorIfUnsuccessful();
 		
@@ -173,9 +179,20 @@ public class SitesController {
 	public SiteDetail patchSite(@PathVariable Long id, @RequestBody SiteDetail siteDetail) {
 		siteDetail.setId(id);
 		
-		RequestEvent<SiteDetail> req = new RequestEvent<SiteDetail>(siteDetail);
+		RequestEvent<SiteDetail> req = new RequestEvent<>(siteDetail);
 		ResponseEvent<SiteDetail> resp = siteService.patchSite(req);
 		resp.throwErrorIfUnsuccessful();
+		return resp.getPayload();
+	}
+
+
+	@RequestMapping(method = RequestMethod.PUT, value = "/bulk-update")
+	@ResponseBody
+	@ResponseStatus(HttpStatus.OK)
+	public List<SiteDetail> bulkUpdateSites(@RequestBody BulkEntityDetail<SiteDetail> detail) {
+		ResponseEvent<List<SiteDetail>> resp = siteService.bulkUpdateSites(new RequestEvent<>(detail));
+		resp.throwErrorIfUnsuccessful();
+
 		return resp.getPayload();
 	}
 		
@@ -183,7 +200,7 @@ public class SitesController {
 	@ResponseBody
 	@ResponseStatus(HttpStatus.OK)
 	public List<DependentEntityDetail> getDependentEntities(@PathVariable Long id) {
-		RequestEvent<Long> req = new RequestEvent<Long>(id);
+		RequestEvent<Long> req = new RequestEvent<>(id);
 		ResponseEvent<List<DependentEntityDetail>> resp = siteService.getDependentEntities(req);
 		resp.throwErrorIfUnsuccessful();
 		
@@ -193,13 +210,39 @@ public class SitesController {
 	@RequestMapping(method = RequestMethod.DELETE, value = "/{id}")
 	@ResponseBody
 	@ResponseStatus(HttpStatus.OK)
-	public SiteDetail deleteSite(@PathVariable Long id, 
-			@RequestParam(value="close", required=false, defaultValue="false") boolean close) {
+	public SiteDetail deleteSite(
+		@PathVariable
+		Long id,
+
+		@RequestParam(value="close", required=false, defaultValue="false")
+		boolean close) {
+
 		DeleteEntityOp deleteOp = new DeleteEntityOp(id, close);
-		RequestEvent<DeleteEntityOp> req = new RequestEvent<DeleteEntityOp>(deleteOp);
-		ResponseEvent<SiteDetail> resp = siteService.deleteSite(req);
+		ResponseEvent<SiteDetail> resp = siteService.deleteSite(new RequestEvent<>(deleteOp));
 		resp.throwErrorIfUnsuccessful();
-		
+		return resp.getPayload();
+	}
+
+	@RequestMapping(method = RequestMethod.DELETE)
+	@ResponseBody
+	@ResponseStatus(HttpStatus.OK)
+	public List<SiteDetail> deleteSites(
+		@RequestParam(value="id")
+		Long[] ids,
+
+		@RequestParam(value="close", required=false, defaultValue="false")
+		boolean close) {
+
+		Status status = close ? Status.ACTIVITY_STATUS_CLOSED : Status.ACTIVITY_STATUS_DISABLED;
+		SiteDetail siteDetail = new SiteDetail();
+		siteDetail.setActivityStatus(status.getStatus());
+
+		BulkEntityDetail<SiteDetail> detail = new BulkEntityDetail<>();
+		detail.setIds(Arrays.asList(ids));
+		detail.setDetail(siteDetail);
+
+		ResponseEvent<List<SiteDetail>> resp = siteService.bulkUpdateSites(new RequestEvent<>(detail));
+		resp.throwErrorIfUnsuccessful();
 		return resp.getPayload();
 	}
 

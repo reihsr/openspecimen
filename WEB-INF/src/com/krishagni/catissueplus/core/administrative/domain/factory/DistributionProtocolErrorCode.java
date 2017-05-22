@@ -13,6 +13,8 @@ public enum DistributionProtocolErrorCode implements ErrorCode {
 
 	DUP_TITLE,
 
+	DP_REQUIRED,
+
 	NOT_FOUND,
 
 	PI_REQUIRED,
@@ -31,7 +33,11 @@ public enum DistributionProtocolErrorCode implements ErrorCode {
 	
 	PI_COORD_CANNOT_BE_SAME,
 
-	EXPIRED;
+	EXPIRED,
+	
+	DUP_CONSENT,
+
+	CONSENT_NOT_FOUND;
 
 	@Override
 	public String code() {

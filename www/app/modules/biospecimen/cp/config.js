@@ -107,7 +107,15 @@ angular.module('openspecimen')
       getDictionary: function(cpId, defValue) {
         return getWorkflowData(cpId, 'dictionary').then(
           function(data) {
-            return data.fields || defValue || [];
+            if (data.fields) {
+              return data.fields;
+            }
+
+            return getWorkflowData(-1, 'dictionary').then(
+              function(sysDict) {
+                return sysDict.fields || defValue || [];
+              }
+            );
           }
         );
       },
@@ -141,14 +149,14 @@ angular.module('openspecimen')
         );
       },
 
-      getLockedParticipantFields: function() {
+      getLockedParticipantFields: function(src) {
         return getWorkflowData(-1, 'locked-fields').then(
           function(data) {
             if (!data) {
               return [];
             }
 
-            return data.participant || [];
+            return (data.participant || {})[src || 'OpenSpecimen'] || [];
           }
         );
       }

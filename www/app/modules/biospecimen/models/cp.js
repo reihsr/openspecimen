@@ -8,7 +8,7 @@ angular.module('os.biospecimen.models.cp', ['os.common.models'])
           cp.consentModel = osModel('collection-protocols/' + cp.$id() + '/consent-tiers');
 
           cp.consentModel.prototype.getDisplayName = function() {
-            return this.statement;
+            return this.statementCode;
           }
 
           cp.consentModel.prototype.getType = function() {
@@ -42,6 +42,14 @@ angular.module('os.biospecimen.models.cp', ['os.common.models'])
       return CollectionProtocol.url() + "sop-documents";
     }
 
+    CollectionProtocol.getBarcodingEnabled = function() {
+      return $http.get(CollectionProtocol.url() + 'barcoding-enabled').then(
+        function(resp) {
+          return resp.data;
+        }
+      );
+    }
+
     CollectionProtocol.getWorkflows = function(cpId) {
       return $http.get(CollectionProtocol.url() + cpId + '/workflows').then(
         function(result) {
@@ -56,6 +64,14 @@ angular.module('os.biospecimen.models.cp', ['os.common.models'])
           return result.data;
         }
       )
+    }
+
+    CollectionProtocol.bulkDelete = function(cpIds) {
+      return $http.delete(CollectionProtocol.url(), {params: {id: cpIds, forceDelete: true}}).then(
+        function(result) {
+          return result.data;
+        }
+      );
     }
 
     CollectionProtocol.prototype.getType = function() {
@@ -179,8 +195,8 @@ angular.module('os.biospecimen.models.cp', ['os.common.models'])
       );
     }
 
-    CollectionProtocol.prototype.getExpressionValues = function(expr) {
-      var params = {expr: expr};
+    CollectionProtocol.prototype.getExpressionValues = function(listName, expr) {
+      var params = {listName: listName, expr: expr};
       return $http.get(CollectionProtocol.url() + this.$id() + '/expression-values', {params: params}).then(
         function(resp) {
           return resp.data;
@@ -210,14 +226,6 @@ angular.module('os.biospecimen.models.cp', ['os.common.models'])
           return resp.data;
         }
       );;
-    }
-
-    CollectionProtocol.prototype.$remove = function() {
-      return $http['delete'](CollectionProtocol.url() + this.$id() + '?forceDelete=true').then(
-        function(resp) {
-          return resp.data;
-        }
-      );
     }
 
     return CollectionProtocol;

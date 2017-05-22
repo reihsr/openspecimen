@@ -60,4 +60,10 @@ public interface ConfigurationService {
 	public Map<String, Object> getAppProps();
 	
 	public String getDataDir();
+	
+	Map<String, String> getPasswordSettings();
+
+	boolean isOracle();
+
+	Map<String, String> getDeploymentSiteAssets();
 }

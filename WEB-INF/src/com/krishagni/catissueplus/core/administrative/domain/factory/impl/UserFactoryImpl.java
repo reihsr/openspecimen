@@ -6,14 +6,17 @@ import java.util.Calendar;
 import org.apache.commons.lang.StringUtils;
 
 import com.krishagni.catissueplus.core.administrative.domain.Institute;
+import com.krishagni.catissueplus.core.administrative.domain.Site;
 import com.krishagni.catissueplus.core.administrative.domain.User;
 import com.krishagni.catissueplus.core.administrative.domain.factory.InstituteErrorCode;
+import com.krishagni.catissueplus.core.administrative.domain.factory.SiteErrorCode;
 import com.krishagni.catissueplus.core.administrative.domain.factory.UserErrorCode;
 import com.krishagni.catissueplus.core.administrative.domain.factory.UserFactory;
 import com.krishagni.catissueplus.core.administrative.events.UserDetail;
 import com.krishagni.catissueplus.core.auth.domain.AuthDomain;
 import com.krishagni.catissueplus.core.biospecimen.repository.DaoFactory;
 import com.krishagni.catissueplus.core.common.CommonValidator;
+import com.krishagni.catissueplus.core.common.errors.ActivityStatusErrorCode;
 import com.krishagni.catissueplus.core.common.errors.ErrorType;
 import com.krishagni.catissueplus.core.common.errors.OpenSpecimenException;
 import com.krishagni.catissueplus.core.common.util.Status;
@@ -39,6 +42,7 @@ public class UserFactoryImpl implements UserFactory {
 		setEmailAddress(detail, user, ose);
 		setPhoneNumber(detail, user, ose);
 		setInstitute(detail, user, ose);
+		setPrimarySite(detail, user, ose);
 		setAddress(detail, user, ose);
 		setAuthDomain(detail, user, ose);
 		setManageForms(detail, user, ose);
@@ -61,6 +65,7 @@ public class UserFactoryImpl implements UserFactory {
 		setEmailAddress(detail, existing, user, ose);
 		setPhoneNumber(detail, existing, user, ose);
 		setInstitute(detail, existing, user, ose);
+		setPrimarySite(detail, existing, user, ose);
 		setAddress(detail, existing, user, ose);
 		setAuthDomain(detail, existing, user, ose);
 		setManageForms(detail, existing, user, ose);
@@ -69,12 +74,11 @@ public class UserFactoryImpl implements UserFactory {
 	}
 
 	private void setType(UserDetail detail, User user, OpenSpecimenException ose) {
+		user.setType(User.Type.NONE);
+
 		try {
-			String type = detail.getType();
-			if (StringUtils.isBlank(type)) {
-				user.setType(User.Type.NONE);
-			} else {
-				user.setType(User.Type.valueOf(type));
+			if (StringUtils.isNotBlank(detail.getType())) {
+				user.setType(User.Type.valueOf(detail.getType()));
 			}
 		} catch (IllegalArgumentException iae) {
 			ose.addError(UserErrorCode.INVALID_TYPE, detail.getType());
@@ -166,20 +170,45 @@ public class UserFactoryImpl implements UserFactory {
 			user.setInstitute(existing.getInstitute());
 		}
 	}
-	
-	private void setActivityStatus(UserDetail detail, User user, OpenSpecimenException ose) {
-		String activityStatus = detail.getActivityStatus();
-		if (activityStatus == null) {
-			activityStatus =  Status.ACTIVITY_STATUS_ACTIVE.getStatus();
-		}
-		
-		if (activityStatus.equals(Status.ACTIVITY_STATUS_CLOSED.getStatus()) || 
-				activityStatus.equals(Status.ACTIVITY_STATUS_DISABLED)) {
-			ose.addError(UserErrorCode.STATUS_CHANGE_NOT_ALLOWED);
+
+	private void setPrimarySite(UserDetail detail, User user, OpenSpecimenException ose) {
+		String siteName = detail.getPrimarySite();
+		if (StringUtils.isBlank(siteName)) {
 			return;
 		}
-		
-		user.setActivityStatus(activityStatus);
+
+		Site primarySite = daoFactory.getSiteDao().getSiteByName(siteName);
+		if (primarySite == null) {
+			ose.addError(SiteErrorCode.NOT_FOUND, siteName);
+			return;
+		}
+
+		ensurePrimarySiteBelongsToInstitute(primarySite, user.getInstitute(), ose);
+		user.setPrimarySite(primarySite);
+	}
+
+	private void setPrimarySite(UserDetail detail, User existing, User user, OpenSpecimenException ose) {
+		if (detail.isAttrModified("primarySite")) {
+			setPrimarySite(detail, user, ose);
+		} else if (existing.getPrimarySite() != null) {
+			ensurePrimarySiteBelongsToInstitute(existing.getPrimarySite(), user.getInstitute(), ose);
+			user.setPrimarySite(existing.getPrimarySite());
+		}
+	}
+
+	private void ensurePrimarySiteBelongsToInstitute(Site primarySite, Institute institute, OpenSpecimenException ose) {
+		if (!primarySite.getInstitute().equals(institute)) {
+			ose.addError(SiteErrorCode.INVALID_SITE_INSTITUTE, primarySite.getName(), institute.getName());
+		}
+	}
+
+	private void setActivityStatus(UserDetail detail, User user, OpenSpecimenException ose) {
+		String status = detail.getActivityStatus();
+		if (StringUtils.isBlank(status)) {
+			status = Status.ACTIVITY_STATUS_ACTIVE.getStatus();
+		}
+
+		user.setActivityStatus(status);
 	}
 
 	private void setActivityStatus(UserDetail detail, User existing, User user, OpenSpecimenException ose) {

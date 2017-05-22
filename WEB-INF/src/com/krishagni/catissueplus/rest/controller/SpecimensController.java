@@ -6,8 +6,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
-
 import org.apache.commons.collections.CollectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -22,12 +20,13 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 import com.krishagni.catissueplus.core.biospecimen.domain.Specimen;
 import com.krishagni.catissueplus.core.biospecimen.domain.factory.SpecimenErrorCode;
-import com.krishagni.catissueplus.core.biospecimen.events.SpecimenDeleteCriteria;
+import com.krishagni.catissueplus.core.biospecimen.events.CpEntityDeleteCriteria;
 import com.krishagni.catissueplus.core.biospecimen.events.SpecimenDetail;
 import com.krishagni.catissueplus.core.biospecimen.events.SpecimenInfo;
 import com.krishagni.catissueplus.core.biospecimen.events.SpecimenQueryCriteria;
 import com.krishagni.catissueplus.core.biospecimen.events.SpecimenStatusDetail;
 import com.krishagni.catissueplus.core.biospecimen.events.VisitSpecimensQueryCriteria;
+import com.krishagni.catissueplus.core.biospecimen.repository.SpecimenListCriteria;
 import com.krishagni.catissueplus.core.biospecimen.services.CollectionProtocolRegistrationService;
 import com.krishagni.catissueplus.core.biospecimen.services.SpecimenService;
 import com.krishagni.catissueplus.core.common.errors.OpenSpecimenException;
@@ -55,9 +54,6 @@ public class SpecimensController {
 	
 	@Autowired
 	private FormService formSvc;
-	
-	@Autowired
-	private HttpServletRequest httpServletRequest;
 	
 	@RequestMapping(method = RequestMethod.HEAD)
 	@ResponseStatus(HttpStatus.OK)
@@ -94,12 +90,18 @@ public class SpecimensController {
 			
 			@RequestParam(value = "visitId", required = false) 
 			Long visitId,
+
+			@RequestParam(value = "storageLocationSite", required = false)
+			String storageLocationSite,
 			
 			@RequestParam(value = "id", required = false)
 			List<Long> ids,
 
 			@RequestParam(value = "label", required = false)
-			List<String> labels) {
+			List<String> labels,
+
+			@RequestParam(value = "barcode", required = false)
+			List<String> barcodes) {
 				
 		if (cprId != null) { // TODO: Move this to CPR controller
 			VisitSpecimensQueryCriteria crit = new VisitSpecimensQueryCriteria();
@@ -114,8 +116,13 @@ public class SpecimensController {
 			ResponseEvent<List<SpecimenInfo>> resp = specimenSvc.getSpecimensById(getRequest(ids));
 			resp.throwErrorIfUnsuccessful();
 			return resp.getPayload();
-		} else if (CollectionUtils.isNotEmpty(labels)) {
-			ResponseEvent<List<SpecimenInfo>> resp = specimenSvc.getSpecimens(getRequest(labels));
+		} else if (CollectionUtils.isNotEmpty(labels) || CollectionUtils.isNotEmpty(barcodes)) {
+			SpecimenListCriteria crit = new SpecimenListCriteria()
+				.labels(labels)
+				.barcodes(barcodes)
+				.storageLocationSite(storageLocationSite);
+
+			ResponseEvent<List<SpecimenInfo>> resp = specimenSvc.getSpecimens(getRequest(crit));
 			resp.throwErrorIfUnsuccessful();
 			return resp.getPayload();
 		} else if (cpId != null) {
@@ -143,6 +150,15 @@ public class SpecimensController {
 	@ResponseBody	
 	public SpecimenDetail createSpecimen(@RequestBody SpecimenDetail detail) {
 		ResponseEvent<SpecimenDetail> resp = specimenSvc.createSpecimen(getRequest(detail));
+		resp.throwErrorIfUnsuccessful();
+		return resp.getPayload();
+	}
+
+	@RequestMapping(method = RequestMethod.PUT)
+	@ResponseStatus(HttpStatus.OK)
+	@ResponseBody
+	public List<SpecimenInfo> updateSpecimens(@RequestBody List<SpecimenDetail> details) {
+		ResponseEvent<List<SpecimenInfo>> resp = specimenSvc.updateSpecimens(getRequest(details));
 		resp.throwErrorIfUnsuccessful();
 		return resp.getPayload();
 	}
@@ -205,10 +221,16 @@ public class SpecimensController {
 	@RequestMapping(method = RequestMethod.DELETE, value="/{id}")
 	@ResponseStatus(HttpStatus.OK)
 	@ResponseBody
-	public SpecimenInfo deleteSpecimen(@PathVariable("id") Long specimenId) {
-		SpecimenDeleteCriteria crit = new SpecimenDeleteCriteria();
+	public SpecimenInfo deleteSpecimen(
+			@PathVariable("id")
+			Long specimenId,
+
+			@RequestParam(value = "forceDelete", required = false, defaultValue = "false")
+			boolean forceDelete) {
+
+		CpEntityDeleteCriteria crit = new CpEntityDeleteCriteria();
 		crit.setId(specimenId);
-		crit.setForceDelete(false);
+		crit.setForceDelete(forceDelete);
 
 		ResponseEvent<List<SpecimenInfo>> resp = specimenSvc.deleteSpecimens(getRequest(Collections.singletonList(crit)));
 		resp.throwErrorIfUnsuccessful();
@@ -219,9 +241,9 @@ public class SpecimensController {
 	@ResponseStatus(HttpStatus.OK)
 	@ResponseBody
 	public List<SpecimenInfo> deleteSpecimens(@RequestParam(value = "id") Long[] specimenIds) {
-		List<SpecimenDeleteCriteria> criteria = new ArrayList<SpecimenDeleteCriteria>();
+		List<CpEntityDeleteCriteria> criteria = new ArrayList<>();
 		for (Long specimenId : specimenIds) {
-			SpecimenDeleteCriteria criterion = new SpecimenDeleteCriteria();
+			CpEntityDeleteCriteria criterion = new CpEntityDeleteCriteria();
 			criterion.setId(specimenId);
 			criterion.setForceDelete(true);
 			criteria.add(criterion);

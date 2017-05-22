@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.codehaus.jackson.annotate.JsonIgnore;
+import org.codehaus.jackson.map.annotate.JsonSerialize;
 
 import com.krishagni.catissueplus.core.biospecimen.domain.CollectionProtocolRegistration;
 import com.krishagni.catissueplus.core.biospecimen.domain.Participant;
@@ -18,9 +19,12 @@ import com.krishagni.catissueplus.core.common.AttributeModifiedSupport;
 import com.krishagni.catissueplus.core.common.ListenAttributeChanges;
 import com.krishagni.catissueplus.core.de.events.ExtensionDetail;
 
+@JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
 @ListenAttributeChanges
 public class ParticipantDetail extends AttributeModifiedSupport {
 	private Long id;
+
+	private String source;
 	
 	private String firstName;
 
@@ -42,7 +46,7 @@ public class ParticipantDetail extends AttributeModifiedSupport {
 
 	private String sexGenotype;
 
-	private String ethnicity;
+	private Set<String> ethnicities;
 
 	private String uid;
 
@@ -63,7 +67,18 @@ public class ParticipantDetail extends AttributeModifiedSupport {
 
 	// Used for CP based custom fields
 	private Long cpId = -1L;
+
+	//
+	// Used in matching API to decide whether to populate registration
+	// info or not
+	//
+	private boolean reqRegInfo;
 	
+	//
+	// transient variables specifying action to be performed
+	//
+	private boolean forceDelete;
+
 	public Long getId() {
 		return id;
 	}
@@ -71,7 +86,15 @@ public class ParticipantDetail extends AttributeModifiedSupport {
 	public void setId(Long id) {
 		this.id = id;
 	}
-	
+
+	public String getSource() {
+		return source;
+	}
+
+	public void setSource(String source) {
+		this.source = source;
+	}
+
 	public String getFirstName() {
 		return firstName;
 	}
@@ -156,12 +179,12 @@ public class ParticipantDetail extends AttributeModifiedSupport {
 		this.sexGenotype = sexGenotype;
 	}
 
-	public String getEthnicity() {
-		return ethnicity;
+	public Set<String> getEthnicities() {
+		return ethnicities;
 	}
 
-	public void setEthnicity(String ethnicity) {
-		this.ethnicity = ethnicity;
+	public void setEthnicities(Set<String> ethnicities) {
+		this.ethnicities = ethnicities;
 	}
 
 	public String getUid() {
@@ -238,6 +261,22 @@ public class ParticipantDetail extends AttributeModifiedSupport {
 		this.cpId = cpId;
 	}
 
+	public boolean isForceDelete() {
+		return forceDelete;
+	}
+
+	public void setForceDelete(boolean forceDelete) {
+		this.forceDelete = forceDelete;
+	}
+
+	public boolean isReqRegInfo() {
+		return reqRegInfo;
+	}
+
+	public void setReqRegInfo(boolean reqRegInfo) {
+		this.reqRegInfo = reqRegInfo;
+	}
+
 	public static ParticipantDetail from(Participant participant, boolean excludePhi) {
 		return from(participant, excludePhi, null);
 	}
@@ -245,17 +284,18 @@ public class ParticipantDetail extends AttributeModifiedSupport {
 	public static ParticipantDetail from(Participant participant, boolean excludePhi, List<CollectionProtocolRegistration> cprs) {
 		ParticipantDetail result = new ParticipantDetail();
 		result.setId(participant.getId());
+		result.setSource(participant.getSource());
 		result.setFirstName(excludePhi ? "###" : participant.getFirstName());
 		result.setLastName(excludePhi ? "###" : participant.getLastName());
 		result.setMiddleName(excludePhi ? "###" : participant.getMiddleName());
 		result.setActivityStatus(participant.getActivityStatus());
 		result.setBirthDate(excludePhi ? null : participant.getBirthDate());
 		result.setDeathDate(excludePhi ? null : participant.getDeathDate());
-		result.setEthnicity(participant.getEthnicity());
+		result.setEthnicities(new HashSet<>(participant.getEthnicities()));
 		result.setGender(participant.getGender());
-		result.setEmpi(excludePhi ? "###" : participant.getEmpi());				
+		result.setEmpi(excludePhi ? "###" : participant.getEmpi());
 		result.setPmis(PmiDetail.from(participant.getPmis(), excludePhi)); 
-		result.setRaces(new HashSet<String>(participant.getRaces()));
+		result.setRaces(new HashSet<>(participant.getRaces()));
 		result.setSexGenotype(participant.getSexGenotype());
 		result.setUid(excludePhi ? "###" : participant.getUid());
 		result.setVitalStatus(participant.getVitalStatus());
@@ -266,7 +306,7 @@ public class ParticipantDetail extends AttributeModifiedSupport {
 	}
 	
 	public static List<ParticipantDetail> from(List<Participant> participants, boolean excludePhi) {
-		List<ParticipantDetail> result = new ArrayList<ParticipantDetail>();
+		List<ParticipantDetail> result = new ArrayList<>();
 		for (Participant participant : participants) {
 			result.add(ParticipantDetail.from(participant, excludePhi));
 		}

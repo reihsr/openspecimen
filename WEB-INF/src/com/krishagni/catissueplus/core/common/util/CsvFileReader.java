@@ -1,12 +1,13 @@
 package com.krishagni.catissueplus.core.common.util;
 
-import java.io.BufferedInputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.FileInputStream;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.apache.commons.io.IOUtils;
 
 import au.com.bytecode.opencsv.CSVReader;
 
@@ -33,13 +34,29 @@ public class CsvFileReader implements CsvReader {
 	}
 	
 	public static CsvFileReader createCsvFileReader(String csvFile, boolean firstRowHeaderRow) {
+		FileReader fr = null;
 		try {
-			BufferedInputStream bin = new BufferedInputStream(new FileInputStream(csvFile));
-			InputStreamReader in = new InputStreamReader(bin, Utility.detectFileCharset(bin));
-			CSVReader csvReader = new CSVReader(in, Utility.getFieldSeparator());
+			fr = new FileReader(csvFile);
+			CSVReader csvReader = new CSVReader(fr, Utility.getFieldSeparator());
 			return new CsvFileReader(csvReader, firstRowHeaderRow);
 		} catch (IOException e) {
+			IOUtils.closeQuietly(fr);
 			throw new CsvException("Error creating CSV file reader", e);
+		}
+	}
+
+	public static int getRowsCount(String csvFile, boolean firstRowHeaderRow) {
+		CsvFileReader reader = null;
+		try {
+			reader = createCsvFileReader(csvFile, firstRowHeaderRow);
+
+			int count = 0;
+			while (reader.next()) {
+				count++;
+			}
+			return count;
+		} finally {
+			IOUtils.closeQuietly(reader);
 		}
 	}
 
@@ -110,7 +127,7 @@ public class CsvFileReader implements CsvReader {
 			for (int i = 0; i < line.length; ++i) {
 				if (line[i] == null || line[i].trim().length() == 0) {
 					throw new CsvException(
-							"CSV file column names line has empty/blank column names");
+							"CSV file column names line has empty/blank column names", line);
 				}
 				columnNameIdxMap.put(line[i].trim(), i);
 			}

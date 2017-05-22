@@ -25,6 +25,8 @@ angular.module('os.query.results', ['os.query.models'])
 
     var currResults = {};
 
+    var criteria = undefined;
+
     function isNumber(val) {
       return !isNaN(val) && angular.isNumber(val);
     }
@@ -55,6 +57,7 @@ angular.module('os.query.results', ['os.query.models'])
     };
 
     function init() {
+      criteria = QueryUtil.getCriteriaAql(queryCtx.filtersMap, queryCtx.exprNodes);
       $scope.queryCtx = queryCtx;
       $scope.cps = cps;
       $scope.selectedRows = [];
@@ -67,7 +70,9 @@ angular.module('os.query.results', ['os.query.models'])
         rows: [],
         numRows: 0,
         labelIndices: [],
-        gridOpts: getGridOpts()
+        gridOpts: getGridOpts(),
+
+        counters: {waiting: true, error: false},
       }
 
       executeQuery($stateParams.editMode);
@@ -96,7 +101,7 @@ angular.module('os.query.results', ['os.query.models'])
       //if (!editMode && isParameterized()) {
       //  showParameterizedFilters();
       //} else {
-        loadRecords(true);
+        loadRecords(true, true);
       //}
     }
 
@@ -134,7 +139,7 @@ angular.module('os.query.results', ['os.query.models'])
       );
     };
 
-    function loadRecords(initFacets) {
+    function loadRecords(initFacets, initCounts) {
       var qc = $scope.queryCtx;
       $scope.showAddToSpecimenList = showAddToSpecimenList();
       $scope.resultsCtx.waitingForRecords = true;
@@ -162,6 +167,10 @@ angular.module('os.query.results', ['os.query.models'])
 
       if (initFacets) {
         loadFacets();
+      }
+
+      if (initCounts) {
+        loadCounters();
       }
     }
 
@@ -271,14 +280,14 @@ angular.module('os.query.results', ['os.query.models'])
 
       var q = undefined;
       if (!!searchTerm) {
-        q = QueryExecutor.getFacetValues($scope.queryCtx.selectedCp.id, [facet.expr], searchTerm);
+        q = QueryExecutor.getFacetValues($scope.queryCtx.selectedCp.id, [facet.expr], searchTerm, criteria);
       }
 
       if (!q) {
         if (facet.valuesQ) {
           q = facet.valuesQ;
         } else {
-          q = facet.valuesQ = QueryExecutor.getFacetValues($scope.queryCtx.selectedCp.id, [facet.expr]);
+          q = facet.valuesQ = QueryExecutor.getFacetValues($scope.queryCtx.selectedCp.id, [facet.expr], undefined, criteria);
         }
       }
 
@@ -302,6 +311,27 @@ angular.module('os.query.results', ['os.query.models'])
         }
       );
     }
+
+    function loadCounters() {
+      var qc = $scope.queryCtx;
+      var aql = QueryUtil.getCountAql(qc.filtersMap, qc.exprNodes);
+
+      var counters = $scope.resultsCtx.counters;
+      counters.waiting = true;
+      counters.error = false;
+      QueryExecutor.getCount(undefined, qc.selectedCp.id, aql).then(
+        function(result) {
+          counters.waiting = false;
+          angular.extend(counters, result);
+        },
+
+        function(result) {
+          counters.waiting = false;
+          counters.error = true;
+        }
+      );
+    }
+
 
     function getAql(addLimit, addPropIds) {
       var qc = $scope.queryCtx;
@@ -533,7 +563,7 @@ angular.module('os.query.results', ['os.query.models'])
         function(queryCtx) {
           $scope.queryCtx = queryCtx;
           QueryUtil.disableCpSelection(queryCtx);
-          loadRecords();
+          loadRecords(false, false);
         }
       );
     }
@@ -682,7 +712,7 @@ angular.module('os.query.results', ['os.query.models'])
         }
       });
 
-      loadRecords(false);
+      loadRecords(false, true);
     }
 
     $scope.clearFacetValueSelection = function($event, facet) {

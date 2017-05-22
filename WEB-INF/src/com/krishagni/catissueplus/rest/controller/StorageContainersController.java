@@ -3,8 +3,10 @@ package com.krishagni.catissueplus.rest.controller;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -37,12 +39,15 @@ import com.krishagni.catissueplus.core.administrative.events.VacantPositionsOp;
 import com.krishagni.catissueplus.core.administrative.repository.StorageContainerListCriteria;
 import com.krishagni.catissueplus.core.administrative.services.ContainerSelectionStrategyFactory;
 import com.krishagni.catissueplus.core.administrative.services.StorageContainerService;
+import com.krishagni.catissueplus.core.biospecimen.events.SpecimenInfo;
+import com.krishagni.catissueplus.core.biospecimen.repository.SpecimenListCriteria;
+import com.krishagni.catissueplus.core.common.events.BulkDeleteEntityOp;
 import com.krishagni.catissueplus.core.common.events.DependentEntityDetail;
 import com.krishagni.catissueplus.core.common.events.ExportedFileDetail;
 import com.krishagni.catissueplus.core.common.events.RequestEvent;
 import com.krishagni.catissueplus.core.common.events.ResponseEvent;
 import com.krishagni.catissueplus.core.common.util.MessageUtil;
-
+import com.krishagni.catissueplus.core.de.events.QueryDataExportResult;
 import edu.common.dynamicextensions.nutility.IoUtil;
 
 @Controller
@@ -314,6 +319,58 @@ public class StorageContainersController {
 		return resp.getPayload();
 	}
 
+	@RequestMapping(method = RequestMethod.GET, value = "{id}/specimens")
+	@ResponseStatus(HttpStatus.OK)
+	@ResponseBody
+	public List<SpecimenInfo> getContainerSpecimens(
+		@PathVariable("id")
+		Long id,
+
+		@RequestParam(value = "container", required = false)
+		String container,
+
+		@RequestParam(value = "specimenType", required = false)
+		String specimenType,
+
+		@RequestParam(value = "anatomicSite", required = false)
+		String anatomicSite,
+
+		@RequestParam(value = "ppid", required = false)
+		String ppid,
+
+		@RequestParam(value = "cpId", required = false)
+		Long cpId,
+
+		@RequestParam(value = "startAt", required = false, defaultValue = "0")
+		int startAt,
+
+		@RequestParam(value = "maxResults", required = false, defaultValue = "100")
+		int maxResults) {
+		SpecimenListCriteria crit = new SpecimenListCriteria()
+			.ancestorContainerId(id)
+			.container(container)
+			.type(specimenType)
+			.anatomicSite(anatomicSite)
+			.ppid(ppid)
+			.cpId(cpId)
+			.startAt(startAt)
+			.maxResults(maxResults);
+
+		ResponseEvent<List<SpecimenInfo>> resp = storageContainerSvc.getSpecimens(new RequestEvent<>(crit));
+		resp.throwErrorIfUnsuccessful();
+		return resp.getPayload();
+	}
+
+	@RequestMapping(method = RequestMethod.GET, value = "{id}/report")
+	@ResponseStatus(HttpStatus.OK)
+	@ResponseBody
+	public QueryDataExportResult getContainerSpecimensReport(@PathVariable("id") Long id) {
+		ContainerQueryCriteria crit = new ContainerQueryCriteria(id);
+		ResponseEvent<QueryDataExportResult> resp = storageContainerSvc.getSpecimensReport(new RequestEvent<>(crit));
+		resp.throwErrorIfUnsuccessful();
+		return resp.getPayload();
+	}
+
 	@RequestMapping(method = RequestMethod.GET, value="{id}/export-map")
 	@ResponseStatus(HttpStatus.OK)
 	@ResponseBody	
@@ -373,11 +430,21 @@ public class StorageContainersController {
 	@RequestMapping(method = RequestMethod.DELETE, value="/{id}")
 	@ResponseStatus(HttpStatus.OK)
 	@ResponseBody
-	public StorageContainerDetail deleteStorageContainer(@PathVariable Long id) {
-		RequestEvent<Long> req = new RequestEvent<Long>(id);
-		ResponseEvent<StorageContainerDetail> resp = storageContainerSvc.deleteStorageContainer(req);
+	public StorageContainerSummary deleteStorageContainer(@PathVariable Long id) {
+		return deleteStorageContainers(new Long[] { id }).get(0);
+	}
+
+	@RequestMapping(method = RequestMethod.DELETE)
+	@ResponseStatus(HttpStatus.OK)
+	@ResponseBody
+	public List<StorageContainerSummary> deleteStorageContainers(@RequestParam(value = "id") Long[] ids) {
+		BulkDeleteEntityOp op = new BulkDeleteEntityOp();
+		op.setIds(new HashSet<>(Arrays.asList(ids)));
+
+		RequestEvent<BulkDeleteEntityOp> req = new RequestEvent<>(op);
+		ResponseEvent<List<StorageContainerSummary>> resp = storageContainerSvc.deleteStorageContainers(req);
 		resp.throwErrorIfUnsuccessful();
-		
+
 		return resp.getPayload();
 	}
 	
@@ -471,6 +538,32 @@ public class StorageContainersController {
 	public List<StorageContainerSummary> getChildContainers(@PathVariable("id") Long containerId) {
 		RequestEvent<ContainerQueryCriteria> req = new RequestEvent<>(new ContainerQueryCriteria(containerId));
 		ResponseEvent<List<StorageContainerSummary>> resp = storageContainerSvc.getChildContainers(req);
+		resp.throwErrorIfUnsuccessful();
+		return resp.getPayload();
+	}
+
+	@RequestMapping(method = RequestMethod.GET, value = "{id}/descendant-containers")
+	@ResponseStatus(HttpStatus.OK)
+	@ResponseBody
+	public List<StorageContainerSummary> getDescendentContainers(
+		@PathVariable("id")
+		Long containerId,
+
+		@RequestParam(value = "name", required = false, defaultValue = "")
+		String name,
+
+		@RequestParam(value = "startAt", required = false, defaultValue = "0")
+		int startAt,
+
+		@RequestParam(value = "maxResults", required = false, defaultValue = "100")
+		int maxResults) {
+		StorageContainerListCriteria crit = new StorageContainerListCriteria()
+			.parentContainerId(containerId)
+			.query(name)
+			.startAt(startAt)
+			.maxResults(maxResults);
+
+		ResponseEvent<List<StorageContainerSummary>> resp = storageContainerSvc.getDescendantContainers(new RequestEvent<>(crit));
 		resp.throwErrorIfUnsuccessful();
 		return resp.getPayload();
 	}

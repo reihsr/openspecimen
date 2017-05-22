@@ -19,6 +19,7 @@ import org.apache.commons.logging.LogFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krishagni.catissueplus.core.common.errors.OpenSpecimenException;
+import com.krishagni.catissueplus.core.common.util.CsvException;
 import com.krishagni.catissueplus.core.common.util.CsvFileReader;
 import com.krishagni.catissueplus.core.common.util.CsvReader;
 import com.krishagni.catissueplus.core.common.util.MessageUtil;
@@ -61,6 +62,8 @@ public class ObjectReader implements Closeable {
 			keyColumnIndices = schema.getKeyColumnNames().stream()
 				.map(columnName -> getCsvColumnNames().indexOf(columnName))
 				.collect(Collectors.toList());
+		} catch (CsvException csvEx) {
+			throw csvEx;
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -86,7 +89,7 @@ public class ObjectReader implements Closeable {
 	
 	public String getRowKey() {
 		return keyColumnIndices.stream()
-			.map(index -> currentRow[index])
+			.map(index -> index < currentRow.length ? currentRow[index] : StringUtils.EMPTY)
 			.collect(Collectors.joining("_"));
 	}
 	
@@ -232,7 +235,7 @@ public class ObjectReader implements Closeable {
 			return value;
 		}
 	}
-		
+	
 	private List<Map<String, Object>> removeEmptyObjs(List<Map<String, Object>> objs) {
 		List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
 		for (Map<String, Object> obj : objs) {
@@ -318,7 +321,7 @@ public class ObjectReader implements Closeable {
 		return value instanceof String && ((String)value).trim().equals(SET_TO_BLANK);
 	}
 	
-	private Date parseDateTime(String value) 
+	private Long parseDateTime(String value)
 	throws ParseException {
 		try {
 			return parseDate(value, dateFmt + " " + timeFmt);
@@ -327,16 +330,16 @@ public class ObjectReader implements Closeable {
 		}		
 	}
 	
-	private Date parseDate(String value) 
+	private Long parseDate(String value)
 	throws ParseException {
 		return parseDate(value, dateFmt);
 	}
 	
-	private Date parseDate(String value, String fmt) 
+	private Long parseDate(String value, String fmt)
 	throws ParseException {
 		SimpleDateFormat sdf = new SimpleDateFormat(fmt);
 		sdf.setLenient(false);
-		return sdf.parse(value);		
+		return sdf.parse(value).getTime();
 	}
 			
 	public static void main(String[] args) 

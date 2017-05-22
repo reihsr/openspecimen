@@ -41,6 +41,8 @@ public enum DistributionOrderErrorCode implements ErrorCode {
 	
 	SPECIMEN_DOES_NOT_EXIST,
 
+	CLOSED_SPECIMENS,
+
 	SPECIMEN_NOT_IN_REQ,
 	
 	INVALID_REQUESTER_RECV_SITE_INST,
@@ -71,7 +73,9 @@ public enum DistributionOrderErrorCode implements ErrorCode {
 
 	RETURNED_BY_REQ,
 
-	SPMN_NOT_FOUND;
+	SPMN_NOT_FOUND,
+
+	NON_CONSENTING_SPECIMENS;
 
 	@Override
 	public String code() {

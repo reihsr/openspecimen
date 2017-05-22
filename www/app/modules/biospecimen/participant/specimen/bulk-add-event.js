@@ -6,6 +6,8 @@ angular.module('os.biospecimen.specimen.bulkaddevent', ['os.biospecimen.models']
       $scope.eventTableCtrl = {};
       
       $scope.specimens = SpecimensHolder.getSpecimens() || [];
+      $scope.showVisit = showVisit($scope.specimens);
+
       SpecimensHolder.setSpecimens(null);
       loadSpecimenEvents();
     }
@@ -40,25 +42,30 @@ angular.module('os.biospecimen.specimen.bulkaddevent', ['os.biospecimen.models']
       Alerts.error('common.form_validation_error');
     }
 
+    function showVisit(specimens) {
+      return specimens.some(function(spmn) { return !spmn.$$specimenCentricCp; });
+    }
+
     $scope.passThrough = function() {
       return true;
     }
 
-    $scope.addSpecimens = function(labels) {
-      return SpecimenUtil.getSpecimens(labels).then(
-        function (specimens) {
-          if (!specimens) {
-            return false;
-          }
+    $scope.addSpecimens = function(specimens) {
+      if (!specimens) {
+        return false;
+      }
 
-          Util.addIfAbsent($scope.specimens, specimens, 'id');
-          return true;
-        }
-      );
+      if (!$scope.showVisit) {
+        $scope.showVisit = showVisit(specimens);
+      }
+
+      Util.addIfAbsent($scope.specimens, specimens, 'id');
+      return true;
     }
     
     $scope.removeSpecimen = function(index) {
       $scope.specimens.splice(index, 1);
+      $scope.showVisit = showVisit($scope.specimens);
     }
     
     $scope.initEventOpts = function() {

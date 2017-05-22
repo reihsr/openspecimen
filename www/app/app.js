@@ -110,7 +110,7 @@ osApp.config(function(
     }
   })
   .factory('httpRespInterceptor', function(
-    $rootScope, $q, $injector, $window, $templateCache,
+    $rootScope, $q, $injector, $window, $templateCache, $cookieStore,
     Alerts, LocationChangeListener) {
 
     var qp = '?_buildVersion=' + ui.os.appProps.build_version + '&_buildDate=' + ui.os.appProps.build_date;
@@ -152,6 +152,8 @@ osApp.config(function(
           Alerts.error("common.server_connect_error");
         } else if (rejection.status == 401) {
           $rootScope.loggedIn = false;
+
+          $cookieStore.remove('osAuthToken');
           delete $window.localStorage['osAuthToken'];
           delete $injector.get("$http").defaults.headers.common['X-OS-API-TOKEN'];
           $injector.get('$state').go('login'); // using injector to get rid of circular dependencies
@@ -236,6 +238,14 @@ osApp.config(function(
     $rootScope, $window, $document, $http, $cookies, $q,  $state, $translate, $translatePartialLoader,
     LocationChangeListener, ApiUtil, Setting, PluginReg, Util) {
 
+    function isRedirectAllowed(st) {
+      return !st.data || st.data.redirect !== false;
+    }
+
+    function isLandingView(st) {
+      return st.data && (st.data.landingView === true);
+    }
+
     if (!angular.merge) {
       angular.merge = function(dst, src) {
         return Util.merge(src, dst);
@@ -260,18 +270,19 @@ osApp.config(function(
     $rootScope.$on('$stateChangeSuccess',
       function(event, toState, toParams, fromState, fromParams) {
         $rootScope.state = toState;
-      });
+      }
+    );
 
     $rootScope.$on('$stateChangeStart',
       function(event, toState, toParams, fromState, fromParams) {
         LocationChangeListener.onChange(event);
 
-        if (toState.parent != 'default-nav-buttons') {
+        if (toState.parent != 'default-nav-buttons' && !isLandingView(toState)) {
           $rootScope.reqState = {
             name: toState.name,
             params: toParams
           };
-        } else if ($rootScope.loggedIn && toState.name != "login") {
+        } else if ($rootScope.loggedIn && isRedirectAllowed(toState)) {
           event.preventDefault();
           if ($rootScope.reqState) {
             $state.go($rootScope.reqState.name, $rootScope.reqState.params);
@@ -284,7 +295,8 @@ osApp.config(function(
           toState  : toState,   toParams  : toParams,
           fromState: fromState, fromParams: fromParams
         };
-      });
+      }
+    );
       
     $rootScope.$on('$stateChangeError',
       function(event, toState, toParams, fromState, fromParams) {
@@ -348,6 +360,12 @@ osApp.config(function(
 
         $translate.fallbackLanguage(langs);
         $translate.refresh();
+      }
+    );
+
+    Setting.getDeploymentSiteAssets().then(
+      function(resp) {
+        $rootScope.global.siteAssets = resp;
       }
     );
   });

@@ -5,7 +5,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Writer;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 import com.krishagni.catissueplus.core.administrative.repository.FormListCriteria;
+import com.krishagni.catissueplus.core.common.events.BulkDeleteEntityOp;
 import com.krishagni.catissueplus.core.common.events.DependentEntityDetail;
 import com.krishagni.catissueplus.core.common.events.RequestEvent;
 import com.krishagni.catissueplus.core.common.events.ResponseEvent;
@@ -72,10 +75,14 @@ public class FormsController {
 			int maxResults,
 			
 			@RequestParam(value="formType", required=false, defaultValue="DataEntry")
-			String formType) {
+			String formType,
+
+			@RequestParam(value="excludeSysForms", required=false)
+			Boolean excludeSysForms) {
 		FormListCriteria crit = new FormListCriteria()
 				.query(name)
 				.formType(formType)
+				.excludeSysForm(excludeSysForms)
 				.startAt(startAt)
 				.maxResults(maxResults);
 		
@@ -89,11 +96,15 @@ public class FormsController {
 	@ResponseBody
 	public Map<String, Long> getFormsCount(
 			@RequestParam(value = "name", required= false, defaultValue = "")
-			String name) {
+			String name,
+
+			@RequestParam(value="excludeSysForms", required=false)
+			Boolean excludeSysForms) {
 		
 		FormListCriteria crit = new FormListCriteria()
 				.query(name)
-				.formType("DataEntry");
+				.formType("DataEntry")
+				.excludeSysForm(excludeSysForms);
 		
 		ResponseEvent<Long> resp = formSvc.getFormsCount(getRequest(crit));
 		resp.throwErrorIfUnsuccessful();
@@ -104,7 +115,15 @@ public class FormsController {
 	@ResponseStatus(HttpStatus.OK)
 	@ResponseBody
 	public Boolean deleteForm(@PathVariable("id") Long formId) {
-		ResponseEvent<Boolean> resp = formSvc.deleteForm(getRequest(formId));
+		return deleteForms(new Long[] {formId});
+	}
+
+	@RequestMapping(method = RequestMethod.DELETE)
+	@ResponseStatus(HttpStatus.OK)
+	@ResponseBody
+	public Boolean deleteForms(@RequestParam(value = "id") Long[] ids) {
+		BulkDeleteEntityOp op = new BulkDeleteEntityOp(new HashSet<>(Arrays.asList(ids)));
+		ResponseEvent<Boolean> resp = formSvc.deleteForms(getRequest(op));
 		resp.throwErrorIfUnsuccessful();
 		return resp.getPayload();
 	}

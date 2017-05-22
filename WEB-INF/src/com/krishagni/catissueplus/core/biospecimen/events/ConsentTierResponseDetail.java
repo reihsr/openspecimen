@@ -1,11 +1,24 @@
 
 package com.krishagni.catissueplus.core.biospecimen.events;
 
-public class ConsentTierResponseDetail {
+import com.krishagni.catissueplus.core.common.AttributeModifiedSupport;
+import com.krishagni.catissueplus.core.common.ListenAttributeChanges;
+
+@ListenAttributeChanges
+public class ConsentTierResponseDetail extends AttributeModifiedSupport {
+	private String code;
 
 	private String statement;
 	
 	private String response;
+
+	public String getCode() {
+		return code;
+	}
+
+	public void setCode(String code) {
+		this.code = code;
+	}
 
 	public String getStatement() {
 		return statement;

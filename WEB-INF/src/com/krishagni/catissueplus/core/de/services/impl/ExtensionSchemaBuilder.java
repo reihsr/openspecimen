@@ -58,7 +58,7 @@ public class ExtensionSchemaBuilder implements ObjectSchemaBuilder {
 		List<Field> fields = new ArrayList<Field>();
 		fields.add(getField("recordId", "Record ID"));
 		
-		if (entityType.equals("Participant")) {
+		if (entityType.equals("Participant") || entityType.equals("CommonParticipant")) {
 			fields.add(getField("cpShortTitle", "Collection Protocol"));
 			fields.add(getField("ppid", "PPID"));
 		} else if (entityType.equals("SpecimenCollectionGroup")) {
@@ -66,6 +66,7 @@ public class ExtensionSchemaBuilder implements ObjectSchemaBuilder {
 		} else if (entityType.equals("Specimen") || entityType.equals("SpecimenEvent")) {
 			fields.add(getField("cpShortTitle", "CP Short Title"));
 			fields.add(getField("specimenLabel", "Specimen Label"));
+			fields.add(getField("barcode", "Barcode"));
 		}
 		
 		fields.add(getField("activityStatus", "Activity Status"));
@@ -91,7 +92,7 @@ public class ExtensionSchemaBuilder implements ObjectSchemaBuilder {
 		for (Control ctrl : form.getOrderedControlList()) {
 			if (ctrl instanceof SubFormControl) {
 				subRecords.add(getSubRecord((SubFormControl)ctrl, useUdn));
-			} else if (!(ctrl instanceof FileUploadControl)) {
+			} else {
 				fields.add(getField(ctrl, useUdn));
 			}
 		}

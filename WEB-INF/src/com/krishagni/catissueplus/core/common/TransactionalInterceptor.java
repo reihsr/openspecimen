@@ -21,17 +21,20 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.krishagni.catissueplus.core.common.errors.ErrorType;
 import com.krishagni.catissueplus.core.common.errors.OpenSpecimenException;
 import com.krishagni.catissueplus.core.common.events.ResponseEvent;
 import com.krishagni.catissueplus.core.common.util.AuthUtil;
 import com.krishagni.catissueplus.core.common.util.ConfigUtil;
 import com.krishagni.catissueplus.core.common.util.EmailUtil;
+import com.krishagni.catissueplus.core.common.util.UnhandledExceptionUtil;
 
 @Aspect
 public class TransactionalInterceptor {
@@ -40,11 +43,16 @@ public class TransactionalInterceptor {
 	private PlatformTransactionManager transactionManager;
 	
 	private TransactionTemplate txTmpl;
+	
+	private TransactionTemplate newTxTmpl;
 
 	public void setTransactionManager(PlatformTransactionManager transactionManager) {
 		this.transactionManager = transactionManager;
 		this.txTmpl = new TransactionTemplate(transactionManager);
 		this.txTmpl.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRED);
+		
+		this.newTxTmpl = new TransactionTemplate(transactionManager);
+		this.newTxTmpl.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 	}
 
 	@Pointcut("execution(@com.krishagni.catissueplus.core.common.PlusTransactional * *(..))")
@@ -68,10 +76,19 @@ public class TransactionalInterceptor {
 	private Object doWork(ProceedingJoinPoint pjp, boolean rollback) {
 		try {
 			return doWork0(pjp, rollback);
+		} catch (DataAccessException dae) {
+			throw OpenSpecimenException.serverError(dae.getCause() != null ? dae.getCause() : dae);
 		} catch (Throwable t) {
+			if (t instanceof OpenSpecimenException) {
+				OpenSpecimenException ose = (OpenSpecimenException) t;
+				if (ose.getErrorType() == ErrorType.USER_ERROR) {
+					throw ose;
+				}
+			}
+
 			logger.error("Error doing work inside " + pjp.getSignature(), t);
-			notifyUncaughtServerError(t.getCause());
-			throw t;
+			Long exceptionId = handleServerError(t.getCause(), pjp.getArgs());
+			throw OpenSpecimenException.serverError(exceptionId, t);
 		}
 	}
 
@@ -91,48 +108,55 @@ public class TransactionalInterceptor {
 							status.setRollbackOnly();
 							if (resp.isSystemError() || resp.isUnknownError()) {
 								logger.error("Error doing work inside " + pjp.getSignature(), resp.getError().getException());
-								notifyUncaughtServerError(resp.getError().getException());
+
+								OpenSpecimenException ose = resp.getError();
+								Long exceptionId = handleServerError(ose.getException(), pjp.getArgs());
+								ose.setExceptionId(exceptionId);
 							}
 						} else if (resp.isRollback()) {
 							status.setRollbackOnly();
 						}
 					}
 				
-					return result ;
+					return result;
 				} catch (OpenSpecimenException ose) {
 					status.setRollbackOnly();
 					throw ose;
 				} catch (Throwable t) {
 					logger.error("Error doing work inside " + pjp.getSignature(), t);
 					status.setRollbackOnly();
-					notifyUncaughtServerError(t);
 					throw OpenSpecimenException.serverError(t);
 				}
 			}
 		});
 	}
 
-	private void notifyUncaughtServerError(Throwable t) {
+	private Long handleServerError(Throwable t, Object[] args) {
+		Long exceptionId = null;
 		try {
+			StackTraceElement ste = getSte(t);
+			if (seenMaxTimesInLastInterval(ste)) {
+				return exceptionId;
+			}
+
+			exceptionId = saveUnhandledExceptionToDb(t, ste, args);
+			
 			String itAdminEmailId = ConfigUtil.getInstance().getItAdminEmailId();
 			if (StringUtils.isBlank(itAdminEmailId)) {
 				logger.error("No admin or IT admin email ID has been configured to send uncaught system errors");
-				return;
-			}
-
-			StackTraceElement ste = getSte(t);
-			if (seenMaxTimesInLastInterval(ste)) {
-				return;
+				return exceptionId;
 			}
 
 			EmailUtil.getInstance().sendEmail(
 				SERVER_ERROR_TMPL,
 				new String[] {itAdminEmailId},
 				new File[] {getErrorLog(t)},
-				getErrorDetail(t, ste));
+				getErrorDetail(exceptionId, t, ste));
 		} catch (Exception e) {
 			logger.error("Error notifying uncaught server errors", e);
 		}
+		
+		return exceptionId;
     }
 
 	private File getErrorLog(Throwable t)
@@ -159,12 +183,12 @@ public class TransactionalInterceptor {
 			if (stackTrace[i].getMethodName().contains("startTransaction")) {
 				return (i + 1 < stackTrace.length) ? stackTrace[++i] : stackTrace[i];
 			}
-		}
 
+		}
 		return null;
 	}
 
-	private Map<String, Object> getErrorDetail(Throwable t, StackTraceElement ste) {
+	private Map<String, Object> getErrorDetail(Long exceptionId, Throwable t, StackTraceElement ste) {
 		Map<String, Object> emailProps = new HashMap<>();
 		emailProps.put("userName", AuthUtil.getCurrentUser().getUsername());
 		emailProps.put("ste", ste);
@@ -181,6 +205,7 @@ public class TransactionalInterceptor {
 		 * "t.getCause()" gives -> null
 		 */
 		emailProps.put("exception", t.getCause() != null ? t.getCause() : t);
+		emailProps.put("exceptionId", exceptionId);
 		return emailProps;
 	}
 
@@ -218,6 +243,22 @@ public class TransactionalInterceptor {
 
 	private boolean areTimesInSameInterval(long t1, long t2, int interval) {
 		return ((t2 - t1) / (60 * 1000)) < interval;
+	}
+	
+	private Long saveUnhandledExceptionToDb(Throwable t, StackTraceElement ste, Object[] args) {
+		return newTxTmpl.execute(new TransactionCallback<Long>() {
+			@Override
+			public Long doInTransaction(TransactionStatus status) {
+				try {
+					return UnhandledExceptionUtil.getInstance().saveUnhandledException(t, ste, args);
+				} catch (Throwable t) {
+					status.setRollbackOnly();
+					logger.error("Error saving unhandled exception to DB", t);
+				}
+
+				return null;
+			}
+		});
 	}
 
 	//

@@ -182,7 +182,7 @@
         <udn>initialQty</udn>
         <caption>#getMessage("specimen_initial_quantity")</caption>
         <column>INITIAL_QUANTITY</column>
-        <noOfDigitsAfterDecimal>4</noOfDigitsAfterDecimal>
+        <noOfDigitsAfterDecimal>2</noOfDigitsAfterDecimal>
       </numberField>
     </row>
 
@@ -192,7 +192,7 @@
         <udn>availableQty</udn>
         <caption>#getMessage("specimen_available_quantity")</caption>
         <column>AVAILABLE_QUANTITY</column>
-        <noOfDigitsAfterDecimal>4</noOfDigitsAfterDecimal>
+        <noOfDigitsAfterDecimal>2</noOfDigitsAfterDecimal>
       </numberField>
     </row>
 
@@ -202,7 +202,7 @@
         <udn>concentration</udn>
         <caption>#getMessage("specimen_concentration")</caption>
         <column>CONCENTRATION</column>
-        <noOfDigitsAfterDecimal>4</noOfDigitsAfterDecimal>
+        <noOfDigitsAfterDecimal>2</noOfDigitsAfterDecimal>
       </numberField>
     </row>
 
@@ -335,6 +335,26 @@
                 <maxLength>255</maxLength>
                 <recordUrl>#/object-state-params-resolver?stateName=container-detail.overview&amp;objectName=container&amp;key=name&amp;value={{$value}}</recordUrl>
               </textField>
+            </row>
+          </subForm>
+        </row>
+
+        <row>
+          <subForm>
+            <name>allAncestors</name>
+            <udn>allAncestors</udn>
+            <caption>#getMessage("specimen_spec_position_container_all_ancestors")</caption>
+            <table>OS_CONTAINERS_HIERARCHY</table>
+            <foreignKey>DESCENDENT_ID</foreignKey>
+            <parentKey>CONTAINER_IDENTIFIER</parentKey>
+            <pathLink>true</pathLink>
+            <row>
+              <numberField>
+                <name>ancestorId</name>
+                <udn>ancestorId</udn>
+                <caption>#getMessage("specimen_spec_position_container_ancestor_id")</caption>
+                <column>ANCESTOR_ID</column>
+              </numberField>
             </row>
           </subForm>
         </row>
@@ -523,7 +543,7 @@
             <udn>quantity</udn>
             <caption>#getMessage("specimen_distribution_quantity")</caption>
             <column>QUANTITY</column>
-            <noOfDigitsAfterDecimal>4</noOfDigitsAfterDecimal>
+            <noOfDigitsAfterDecimal>2</noOfDigitsAfterDecimal>
           </numberField>
         </row>
  

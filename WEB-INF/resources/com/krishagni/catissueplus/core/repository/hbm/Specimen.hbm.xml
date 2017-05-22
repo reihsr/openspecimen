@@ -75,6 +75,11 @@
       <filter name="activeEntity"/>
     </set>
 
+    <many-to-one 
+      name="collectionProtocol"
+      class="com.krishagni.catissueplus.core.biospecimen.domain.CollectionProtocol" 
+      column="COLLECTION_PROTOCOL_ID" />
+
     <many-to-one name="visit"
       class="com.krishagni.catissueplus.core.biospecimen.domain.Visit"
       column="SPECIMEN_COLLECTION_GROUP_ID"/>
@@ -88,9 +93,9 @@
       column="IDENTIFIER" not-found="ignore"
       update="false" insert="false"/>
 
-    <set name="specimenLists" table="CATISSUE_SPEC_TAG_ITEMS" lazy="true">
+    <set name="specimenListItems" table="CATISSUE_SPEC_TAG_ITEMS" lazy="true">
       <key column="OBJ_ID"/>
-      <many-to-many class="com.krishagni.catissueplus.core.biospecimen.domain.SpecimenList" column="TAG_ID" />
+      <one-to-many class="com.krishagni.catissueplus.core.biospecimen.domain.SpecimenListItem"/>
     </set>
 
     <filter name="activeEntity"/>
@@ -211,6 +216,18 @@
         label
       having
         count(id) > 1
+    </query>
+
+    <query name="getStorageSite">
+      select
+        spmn.id, site.id
+      from
+        com.krishagni.catissueplus.core.biospecimen.domain.Specimen spmn
+        left join spmn.position as pos
+        left join pos.container as container
+        left join container.site as site
+      where
+        spmn.id in :specimenIds
     </query>
   </class>
 </hibernate-mapping>

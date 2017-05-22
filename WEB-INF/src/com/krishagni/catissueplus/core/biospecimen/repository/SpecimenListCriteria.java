@@ -15,10 +15,28 @@ public class SpecimenListCriteria extends AbstractListCriteria<SpecimenListCrite
 	private List<Pair<Long, Long>> siteCps;
 	
 	private List<String> labels;
+
+	private List<String> barcodes;
 	
 	private Long specimenListId;
 	
 	private boolean useMrnSites;
+
+	private String storageLocationSite;
+
+	private String ppid;
+
+	private String anatomicSite;
+
+	private String type;
+
+	private String container;
+
+	private Long containerId;
+
+	private Long ancestorContainerId;
+
+	private boolean available;
 
 	public SpecimenListCriteria() {
 		exactMatch(true);
@@ -74,6 +92,15 @@ public class SpecimenListCriteria extends AbstractListCriteria<SpecimenListCrite
 		return self();
 	}
 
+	public List<String> barcodes() {
+		return barcodes;
+	}
+
+	public SpecimenListCriteria barcodes(List<String> barcodes) {
+		this.barcodes = barcodes;
+		return self();
+	}
+
 	public Long specimenListId() {
 		return specimenListId;
 	}
@@ -89,6 +116,78 @@ public class SpecimenListCriteria extends AbstractListCriteria<SpecimenListCrite
 	
 	public SpecimenListCriteria useMrnSites(boolean useMrnSites) {
 		this.useMrnSites = useMrnSites;
+		return self();
+	}
+
+	public String storageLocationSite() {
+		return storageLocationSite;
+	}
+
+	public SpecimenListCriteria storageLocationSite(String storageLocationSite) {
+		this.storageLocationSite = storageLocationSite;
+		return self();
+	}
+
+	public String ppid() {
+		return ppid;
+	}
+
+	public SpecimenListCriteria ppid(String ppid) {
+		this.ppid = ppid;
+		return self();
+	}
+
+	public String anatomicSite() {
+		return anatomicSite;
+	}
+
+	public SpecimenListCriteria anatomicSite(String anatomicSite) {
+		this.anatomicSite = anatomicSite;
+		return self();
+	}
+
+	public String type() {
+		return type;
+	}
+
+	public SpecimenListCriteria type(String type) {
+		this.type = type;
+		return self();
+	}
+
+	public String container() {
+		return container;
+	}
+
+	public SpecimenListCriteria container(String container) {
+		this.container = container;
+		return self();
+	}
+
+	public Long containerId() {
+		return containerId;
+	}
+
+	public SpecimenListCriteria containerId(Long containerId) {
+		this.containerId = containerId;
+		return self();
+	}
+
+	public Long ancestorContainerId() {
+		return ancestorContainerId;
+	}
+
+	public SpecimenListCriteria ancestorContainerId(Long ancestorContainerId) {
+		this.ancestorContainerId = ancestorContainerId;
+		return self();
+	}
+
+	public boolean available() {
+		return this.available;
+	}
+
+	public SpecimenListCriteria available(boolean available) {
+		this.available = available;
 		return self();
 	}
 }

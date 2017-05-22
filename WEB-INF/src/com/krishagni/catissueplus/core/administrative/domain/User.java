@@ -53,8 +53,6 @@ public class User extends BaseEntity implements UserDetails {
 
 	private AuthDomain authDomain;
 
-	private Set<Site> sites = new HashSet<Site>();
-
 	private String emailAddress;
 
 	private String phoneNumber;
@@ -66,6 +64,8 @@ public class User extends BaseEntity implements UserDetails {
 	private String activityStatus;
 
 	private Institute institute;
+
+	private Site primarySite;
 
 	private String address;
 
@@ -126,15 +126,6 @@ public class User extends BaseEntity implements UserDetails {
 		return authDomain;
 	}
 
-	@NotAudited
-	public Set<Site> getSites() {
-		return sites;
-	}
-
-	public void setSites(Set<Site> sites) {
-		this.sites = sites;
-	}
-
 	public void setAuthDomain(AuthDomain authDomain) {
 		this.authDomain = authDomain;
 	}
@@ -169,6 +160,14 @@ public class User extends BaseEntity implements UserDetails {
 	
 	public void setInstitute(Institute institute) {
 		this.institute = institute;
+	}
+
+	public Site getPrimarySite() {
+		return primarySite;
+	}
+
+	public void setPrimarySite(Site primarySite) {
+		this.primarySite = primarySite;
 	}
 
 	@NotAudited
@@ -253,7 +252,7 @@ public class User extends BaseEntity implements UserDetails {
 
 	@Override
 	public boolean isAccountNonLocked() {
-		return !Status.ACTIVITY_STATUS_LOCKED.getStatus().equals(getActivityStatus());
+		return !isLocked();
 	}
 
 	@Override
@@ -267,12 +266,17 @@ public class User extends BaseEntity implements UserDetails {
 	}
 
 	public void update(User user) {
+		updateStatus(user.getActivityStatus());
+		if (isDisabled()) {
+			return;
+		}
+
 		setFirstName(user.getFirstName());
 		setLastName(user.getLastName());
 		setAuthDomain(user.getAuthDomain());
-		setActivityStatus(user.getActivityStatus());
 		setAddress(user.getAddress());
 		setInstitute(user.getInstitute());
+		setPrimarySite(user.getPrimarySite());
 		setEmailAddress(user.getEmailAddress());
 		setLoginName(user.getLoginName());
 		setPhoneNumber(user.getPhoneNumber());
@@ -280,7 +284,7 @@ public class User extends BaseEntity implements UserDetails {
 		setType(user.getType());
 		setManageForms(user.canManageForms());
 	}
-	
+
 	public void changePassword(String newPassword) {
 		if (StringUtils.isBlank(newPassword) || !isValidPasswordPattern(newPassword)) {
 			throw OpenSpecimenException.userError(UserErrorCode.PASSWD_VIOLATES_RULES);
@@ -308,22 +312,17 @@ public class User extends BaseEntity implements UserDetails {
 		return daoFactory.getUserDao().getDependentEntities(getId());
 	}
 	
-	public void delete(boolean close) {
-		String activityStatus = Status.ACTIVITY_STATUS_CLOSED.getStatus();
-		if (!close) {
-			activityStatus = Status.ACTIVITY_STATUS_DISABLED.getStatus();
-			List<DependentEntityDetail> dependentEntities = getDependentEntities();
-			if (!dependentEntities.isEmpty()) {
-				throw OpenSpecimenException.userError(UserErrorCode.REF_ENTITY_FOUND);
-			}
-			
-			setLoginName(Utility.getDisabledValue(getLoginName(), 255));
-			setEmailAddress(Utility.getDisabledValue(getEmailAddress(), 255));
+	public void delete() {
+		List<DependentEntityDetail> dependentEntities = getDependentEntities();
+		if (!dependentEntities.isEmpty()) {
+			throw OpenSpecimenException.userError(UserErrorCode.REF_ENTITY_FOUND, formattedName());
 		}
-		
-		setActivityStatus(activityStatus);
+
+		setLoginName(Utility.getDisabledValue(getLoginName(), 255));
+		setEmailAddress(Utility.getDisabledValue(getEmailAddress(), 255));
+		setActivityStatus(Status.ACTIVITY_STATUS_DISABLED.getStatus());
 	}
-	
+
 	public boolean isValidOldPassword(String oldPassword) {
 		if (StringUtils.isBlank(oldPassword)) {
 			throw OpenSpecimenException.userError(UserErrorCode.OLD_PASSWD_NOT_SPECIFIED);
@@ -359,6 +358,22 @@ public class User extends BaseEntity implements UserDetails {
 
 	public boolean isExpired() {
 		return Status.ACTIVITY_STATUS_EXPIRED.getStatus().equals(getActivityStatus());
+	}
+	
+	public boolean isLocked() {
+		return Status.ACTIVITY_STATUS_LOCKED.getStatus().equals(getActivityStatus());
+	}
+
+	public boolean isPending() {
+		return Status.ACTIVITY_STATUS_PENDING.getStatus().equals(getActivityStatus());
+	}
+
+	public boolean isClosed() {
+		return Status.ACTIVITY_STATUS_CLOSED.getStatus().equals(getActivityStatus());
+	}
+
+	public boolean isDisabled() {
+		return Status.ACTIVITY_STATUS_DISABLED.getStatus().equals(getActivityStatus());
 	}
 
 	private boolean isValidPasswordPattern(String password) {
@@ -397,6 +412,18 @@ public class User extends BaseEntity implements UserDetails {
 		}
 
 		return isSameAsLastN;
+	}
+
+	private void updateStatus(String activityStatus) {
+		if (getActivityStatus().equals(activityStatus)) {
+			return;
+		}
+
+		if (Status.ACTIVITY_STATUS_DISABLED.getStatus().equals(activityStatus)) {
+			delete();
+		} else {
+			setActivityStatus(activityStatus);
+		}
 	}
 	
 }

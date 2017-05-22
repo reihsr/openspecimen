@@ -8,7 +8,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,11 +23,14 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.krishagni.catissueplus.core.biospecimen.events.BulkRegistrationsDetail;
 import com.krishagni.catissueplus.core.biospecimen.events.CollectionProtocolRegistrationDetail;
 import com.krishagni.catissueplus.core.biospecimen.events.ConsentDetail;
+import com.krishagni.catissueplus.core.biospecimen.events.CpEntityDeleteCriteria;
 import com.krishagni.catissueplus.core.biospecimen.events.CprSummary;
 import com.krishagni.catissueplus.core.biospecimen.events.FileDetail;
 import com.krishagni.catissueplus.core.biospecimen.events.RegistrationQueryCriteria;
+import com.krishagni.catissueplus.core.biospecimen.events.VisitDetail;
 import com.krishagni.catissueplus.core.biospecimen.repository.CprListCriteria;
 import com.krishagni.catissueplus.core.biospecimen.services.CollectionProtocolRegistrationService;
 import com.krishagni.catissueplus.core.biospecimen.services.CollectionProtocolService;
@@ -56,10 +58,6 @@ public class CollectionProtocolRegistrationsController {
 
 	@Autowired
 	private FormService formSvc;
-	
-	@Autowired
-	private HttpServletRequest httpReq;
-	
 	
 	@RequestMapping(method = RequestMethod.GET)
 	@ResponseStatus(HttpStatus.OK)
@@ -190,12 +188,30 @@ public class CollectionProtocolRegistrationsController {
 		resp.throwErrorIfUnsuccessful();
 		return resp.getPayload();
 	}
+
+	@RequestMapping(method = RequestMethod.GET, value= "/{cprId}/latest-visit")
+	@ResponseStatus(HttpStatus.OK)
+	@ResponseBody
+	public VisitDetail getLatestVisit(@PathVariable("cprId") Long cprId) {
+		ResponseEvent<VisitDetail> resp = cprSvc.getLatestVisit(getRegQueryReq(cprId));
+		resp.throwErrorIfUnsuccessful();
+		return resp.getPayload();
+	}
 	
 	@RequestMapping(method = RequestMethod.POST, value = "/")
 	@ResponseStatus(HttpStatus.OK)
 	@ResponseBody
 	public CollectionProtocolRegistrationDetail register(@RequestBody CollectionProtocolRegistrationDetail cprDetail) {				
 		ResponseEvent<CollectionProtocolRegistrationDetail> resp = cprSvc.createRegistration(getRequest(cprDetail));
+		resp.throwErrorIfUnsuccessful();
+		return resp.getPayload();
+	}
+
+	@RequestMapping(method = RequestMethod.POST, value = "/bulk")
+	@ResponseStatus(HttpStatus.OK)
+	@ResponseBody
+	public List<CollectionProtocolRegistrationDetail> bulkRegister(@RequestBody BulkRegistrationsDetail detail) {
+		ResponseEvent<List<CollectionProtocolRegistrationDetail>> resp = cprSvc.bulkRegistration(getRequest(detail));
 		resp.throwErrorIfUnsuccessful();
 		return resp.getPayload();
 	}
@@ -215,6 +231,18 @@ public class CollectionProtocolRegistrationsController {
 		return resp.getPayload();
 	}
 	
+	@RequestMapping(method = RequestMethod.PUT, value = "/{id}/anonymize")
+	@ResponseStatus(HttpStatus.OK)
+	@ResponseBody
+	public CollectionProtocolRegistrationDetail anonymize(@PathVariable("id") Long cprId) {
+		RegistrationQueryCriteria crit = new RegistrationQueryCriteria();
+		crit.setCprId(cprId);
+
+		ResponseEvent<CollectionProtocolRegistrationDetail> resp = cprSvc.anonymize(getRequest(crit));
+		resp.throwErrorIfUnsuccessful();
+		return resp.getPayload();
+	}
+
 	@RequestMapping(method = RequestMethod.GET, value="/{id}/dependent-entities")
 	@ResponseStatus(HttpStatus.OK)
 	@ResponseBody
@@ -227,8 +255,18 @@ public class CollectionProtocolRegistrationsController {
 	@RequestMapping(method = RequestMethod.DELETE, value="/{id}")
 	@ResponseStatus(HttpStatus.OK)
 	@ResponseBody
-	public CollectionProtocolRegistrationDetail deleteRegistration(@PathVariable("id") Long cprId) {
-		ResponseEvent<CollectionProtocolRegistrationDetail> resp = cprSvc.deleteRegistration(getRegQueryReq(cprId));
+	public CollectionProtocolRegistrationDetail deleteRegistration(
+			@PathVariable("id")
+			Long cprId,
+
+			@RequestParam(value = "forceDelete", required = false, defaultValue = "false")
+			boolean forceDelete) {
+
+		CpEntityDeleteCriteria crit = new CpEntityDeleteCriteria();
+		crit.setId(cprId);
+		crit.setForceDelete(forceDelete);
+
+		ResponseEvent<CollectionProtocolRegistrationDetail> resp = cprSvc.deleteRegistration(getRequest(crit));
 		resp.throwErrorIfUnsuccessful();
 		return resp.getPayload();
 	}
@@ -343,7 +381,7 @@ public class CollectionProtocolRegistrationsController {
 	private RequestEvent<RegistrationQueryCriteria> getRegQueryReq(Long cprId) {
 		RegistrationQueryCriteria crit = new RegistrationQueryCriteria();
 		crit.setCprId(cprId);
-		return new RequestEvent<RegistrationQueryCriteria>(crit);
+		return new RequestEvent<>(crit);
 	}
 	
 	private <T> RequestEvent<T> getRequest(T payload) {

@@ -6,6 +6,8 @@ angular.module('os.administrative.shipment.addedit', ['os.administrative.models'
 
     function init() {
       $scope.shipment = shipment;
+      $scope.spmnOpts = {filters: {}, error: {}};
+      $scope.input = {};
 
       shipment.request = spmnRequest;
       if (!!spmnRequest) {
@@ -20,13 +22,51 @@ angular.module('os.administrative.shipment.addedit', ['os.administrative.models'
         shipment.shipmentItems = getShipmentItems(SpecimensHolder.getSpecimens());
         SpecimensHolder.setSpecimens(null);
       }
-      
+
+      if (!shipment.id && !areSpmnsOfSameSite(shipment.shipmentItems)) {
+        Alerts.error('shipments.multi_site_specimens');
+        $scope.back();
+        return;
+      }
+
       if (!shipment.shippedDate) {
         shipment.shippedDate = new Date();
       }
 
       loadInstitutes();
       setUserAndSiteList(shipment);
+    }
+
+    function areSpmnsOfSameSite(shipmentItems) {
+      if (!shipmentItems) {
+        return true;
+      }
+
+      var site, sameSite = true;
+      for (var i = 0; i < shipmentItems.length; ++i) {
+        var spmn = shipmentItems[i].specimen;
+
+        if (!spmn.storageSite || (!!spmnRequest && !spmn.selected)) {
+          //
+          // either the specimen doesn't have storage site or
+          // it is coming from request but not selected for shipping
+          //
+          continue;
+        }
+
+        if (!!site && site != spmn.storageSite) {
+          sameSite = false;
+          break;
+        }
+
+        site = spmn.storageSite;
+      }
+
+      if (sameSite) {
+        $scope.shipment.sendingSite = site;
+      }
+
+      return sameSite;
     }
     
     function loadInstitutes () {
@@ -157,13 +197,22 @@ angular.module('os.administrative.shipment.addedit', ['os.administrative.models'
       );
     };
 
+    function getValidationMsgKeys(useBarcode) {
+      return {
+        title:         'shipments.specimen_validation.title',
+        foundCount:    'shipments.specimen_validation.found_count',
+        notFoundCount: 'shipments.specimen_validation.not_found_count',
+        notFoundError: 'shipments.specimen_validation.not_found_error',
+        extraCount:    'shipments.specimen_validation.extra_count',
+        extraError:    'shipments.specimen_validation.extra_error',
+        itemLabel:     useBarcode ? 'specimens.barcode' : 'specimens.label',
+        error:         'common.error'
+      }
+    }
+
     $scope.loadSendingSites = loadSendingSites;
 
     $scope.loadRecvSites = loadRecvSites;
-
-    $scope.passThrough = function() {
-      return true;
-    }
 
     $scope.onInstituteSelect = function(instituteName) {
       $scope.shipment.receivingSite = undefined;
@@ -180,17 +229,29 @@ angular.module('os.administrative.shipment.addedit', ['os.administrative.models'
       );
     }
 
-    $scope.addSpecimens = function(labels) {
-      return SpecimenUtil.getSpecimens(labels).then(
-        function (specimens) {
-          if (!specimens) {
-            return false;
+    $scope.initSpmnOpts = function(forward) {
+      if (forward) {
+        $scope.spmnOpts = {
+          filters: {
+            storageLocationSite: $scope.shipment.sendingSite
+          },
+          error: {
+            code: 'specimens.specimen_not_found_at_send_site',
+            params: {sendingSite: $scope.shipment.sendingSite}
           }
-
-          Util.addIfAbsent($scope.shipment.shipmentItems, getShipmentItems(specimens), 'specimen.id');
-          return true;
         }
-      );
+      }
+
+      return true;
+    }
+
+    $scope.addSpecimens = function(specimens) {
+      if (!specimens) {
+        return false;
+      }
+
+      Util.addIfAbsent($scope.shipment.shipmentItems, getShipmentItems(specimens), 'specimen.id');
+      return true;
     }
 
     $scope.removeShipmentItem = function(shipmentItem) {
@@ -228,6 +289,12 @@ angular.module('os.administrative.shipment.addedit', ['os.administrative.models'
       );
 
       $scope.input.allSelected = !allNotSelected;
+    }
+
+    $scope.validateSpecimens = function(ctrl) {
+      var prop = ctrl.useBarcode() ? 'specimen.barcode' : 'specimen.label';
+      var result = Util.validateItems($scope.shipment.shipmentItems, ctrl.getLabels(), prop);
+      Util.showItemsValidationResult(getValidationMsgKeys(ctrl.useBarcode()), result);
     }
 
     init();

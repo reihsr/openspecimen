@@ -1,22 +1,32 @@
 angular.module('openspecimen')
   .directive('osAddItems', function($parse, $q) {
+
+    function parseItems(labelText) {
+      return labelText.split(/,|\t|\n/)
+        .map(function(label) { return label.trim(); })
+        .filter(function(label) { return label.length != 0; });
+    }
+
     return {
       restrict: 'E',
+
+      transclude: true,
 
       replace: true,
 
       scope: {
         itemList: '=',
-        onAdd: '&'
+        onAdd: '&',
+        ctrl: '=?'
       },
 
       controller: function($scope) {
-        $scope.addSpecimens = function() {
-          var labels =
-            $scope.input.labelText.split(/,|\t|\n/)
-              .map(function(label) { return label.trim(); })
-              .filter(function(label) { return label.length != 0; });
+        if ($scope.ctrl) {
+          $scope.ctrl.ctrl = this;
+        }
 
+        $scope.addItems = function() {
+          var labels = parseItems($scope.input.labelText);
           if (labels.length == 0) {
             return;
           }
@@ -42,6 +52,10 @@ angular.module('openspecimen')
             }
           );
         }
+
+        this.getItems = function() {
+          return parseItems($scope.input.labelText);
+        }
       },
 
       link: function(scope, element, attrs, ctrl) {
@@ -60,9 +74,10 @@ angular.module('openspecimen')
                '    placeholder="' + tAttrs.placeholder + '" os-enable-tab rows="2"> ' +
                '  </textarea> '+
                '  <span class="input-group-btn"> ' +
-               '    <button class="btn btn-primary" ng-click="addSpecimens()" ng-disabled="!input.labelText"> ' +
+               '    <button class="btn btn-primary" ng-click="addItems()" ng-disabled="!input.labelText"> ' +
                '      <span translate="common.buttons.add">Add</span> ' +
                '    </button> ' +
+               '    <span ng-transclude></span> ' +
                '  </span> ' +
                '</div> ';
       }

@@ -19,7 +19,8 @@ angular.module('os.query.executor', [])
 
             var result = {cprCnt: 0, specimenCnt: 0};
             result.cprCnt  = data.rows[0][0];
-            for (var i = 1; i < data.rows[0].length; ++i) {
+            result.visitCnt = data.rows[0][1];
+            for (var i = 2; i < data.rows[0].length; ++i) {
               result.specimenCnt += parseInt(data.rows[0][i]);
             }
             return result;
@@ -83,9 +84,9 @@ angular.module('os.query.executor', [])
         link.remove();
       },
 
-      getFacetValues: function(cpId, facetExprs, searchTerm) {
-        var params = {cpId: cpId, facet: facetExprs, searchTerm: searchTerm};
-        return $http.get(queryUrl + '/facet-values', {params: params}).then(
+      getFacetValues: function(cpId, facetExprs, searchTerm, restriction) {
+        var op = {cpId: cpId, facets: facetExprs, searchTerm: searchTerm, restriction: restriction};
+        return $http.post(queryUrl + '/facet-values', op).then(
           function(result) {
             return result.data;
           }

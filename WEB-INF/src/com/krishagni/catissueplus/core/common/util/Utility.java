@@ -7,10 +7,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringWriter;
-import java.io.BufferedInputStream;
-
-import java.net.FileNameMap;
-import java.net.URLConnection;
 import java.text.SimpleDateFormat;
 import java.util.Base64;
 import java.util.Calendar;
@@ -22,9 +18,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import javax.activation.FileTypeMap;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -37,6 +34,7 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
+import org.springframework.mail.javamail.ConfigurableMimeFileTypeMap;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,14 +43,14 @@ import com.krishagni.catissueplus.core.biospecimen.domain.BaseExtensionEntity;
 import com.krishagni.catissueplus.core.common.PdfUtil;
 
 import au.com.bytecode.opencsv.CSVWriter;
-import org.apache.tika.parser.txt.CharsetDetector;
-import org.apache.tika.parser.txt.CharsetMatch;
 
 public class Utility {
 	private static final String key = "0pEN@eSEncRyPtKy";
 	
 	private static final SecretKey secretKey = new SecretKeySpec(key.getBytes(), "AES");
-	
+
+	private static FileTypeMap fileTypesMap = null;
+
 	public static String getDisabledValue(String value, int maxLength) {
 		if (StringUtils.isBlank(value)) {
 			return value;
@@ -215,7 +213,7 @@ public class Utility {
 			}
 
 			if (StringUtils.isNotBlank(filename)) {
-				httpResp.setHeader("Content-Disposition", "attachment;filename=" + filename);
+				httpResp.setHeader("Content-Disposition", "attachment;filename=\"" + filename + "\"");
 			}
 
 			IOUtils.copy(in, httpResp.getOutputStream());
@@ -226,9 +224,18 @@ public class Utility {
 		}
 	}
 	
+	public static String getContentType(String filename) {
+		if (fileTypesMap == null) {
+			synchronized (Utility.class) {
+				fileTypesMap = new ConfigurableMimeFileTypeMap();
+			}
+		}
+
+		return fileTypesMap.getContentType(filename);
+	}
+
 	public static String getContentType(File file) {
-		FileNameMap contentTypesMap = URLConnection.getFileNameMap();
-		return contentTypesMap.getContentTypeFor(file.getAbsolutePath());
+		return getContentType(file.getName());
 	}
 	
 	
@@ -260,14 +267,14 @@ public class Utility {
 	}	
 	
 	public static String getDateString(Date date) {
-		return new SimpleDateFormat(ConfigUtil.getInstance().getDeDateFmt()).format(date);
+		return new SimpleDateFormat(ConfigUtil.getInstance().getDateFmt()).format(date);
 	}
 	
 	public static String getDateTimeString(Date date) {
 		return new SimpleDateFormat(ConfigUtil.getInstance().getDateTimeFmt()).format(date);
 	}
 
-	public static Date chopSeconds (Date date) {
+	public static Date chopSeconds(Date date) {
 		if (date == null) {
 			return null;
 		}
@@ -292,6 +299,10 @@ public class Utility {
 	public static <T> T collect(Collection<?> collection, String propertyName) {
 		return collect(collection, propertyName, false);
     }
+
+    public static <T> List<T> nullSafe(List<T> iterable) {
+		return iterable == null ? Collections.emptyList() : iterable;
+	}
 
 	public static <T> boolean isEmptyOrSameAs(Collection<T> collection, T element) {
 		int size = collection.size();
@@ -539,31 +550,18 @@ public class Utility {
 		return false;
 	}
 
-	public static String detectFileCharset(String file) {
-		InputStream in = null;
-		try {
-			in = new BufferedInputStream(new FileInputStream(file));
-			return detectFileCharset(in);
-		} catch (IOException ioe) {
-			throw new RuntimeException("Error while detecting character set", ioe);
-		} finally {
-			IOUtils.closeQuietly(in);
-		}
-	}
-
-	public static String detectFileCharset(InputStream in) {
-		try {
-			CharsetDetector detector = new CharsetDetector();
-			detector.setText(in);
-
-			CharsetMatch match = detector.detect();
-			return match != null ? match.getName() : "UTF-8";
-		} catch (IOException ioe) {
-			throw new RuntimeException("Error detecting character set", ioe);
-		}
-	}
-	
 	public static long daysBetween(Date start, Date end) {
 		return TimeUnit.DAYS.convert(end.getTime() - start.getTime(), TimeUnit.MILLISECONDS);
+	}
+
+	public static boolean isValidDateFormat(String format) {
+		boolean isValid = true;
+		try {
+			new SimpleDateFormat(format);
+		} catch (IllegalArgumentException e) {
+			isValid = false;
+		}
+
+		return isValid;
 	}
 }

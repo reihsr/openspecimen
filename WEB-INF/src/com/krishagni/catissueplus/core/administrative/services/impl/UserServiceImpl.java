@@ -1,16 +1,23 @@
 
 package com.krishagni.catissueplus.core.administrative.services.impl;
 
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.opensaml.saml2.core.Attribute;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.saml.SAMLCredential;
@@ -28,11 +35,14 @@ import com.krishagni.catissueplus.core.administrative.repository.UserDao;
 import com.krishagni.catissueplus.core.administrative.repository.UserListCriteria;
 import com.krishagni.catissueplus.core.administrative.services.UserService;
 import com.krishagni.catissueplus.core.auth.domain.AuthDomain;
+import com.krishagni.catissueplus.core.auth.domain.AuthErrorCode;
+import com.krishagni.catissueplus.core.auth.domain.LoginAuditLog;
 import com.krishagni.catissueplus.core.biospecimen.repository.DaoFactory;
 import com.krishagni.catissueplus.core.common.PlusTransactional;
 import com.krishagni.catissueplus.core.common.access.AccessCtrlMgr;
 import com.krishagni.catissueplus.core.common.errors.ErrorType;
 import com.krishagni.catissueplus.core.common.errors.OpenSpecimenException;
+import com.krishagni.catissueplus.core.common.events.BulkEntityDetail;
 import com.krishagni.catissueplus.core.common.events.DeleteEntityOp;
 import com.krishagni.catissueplus.core.common.events.DependentEntityDetail;
 import com.krishagni.catissueplus.core.common.events.RequestEvent;
@@ -44,10 +54,11 @@ import com.krishagni.catissueplus.core.common.util.ConfigUtil;
 import com.krishagni.catissueplus.core.common.util.MessageUtil;
 import com.krishagni.catissueplus.core.common.util.Status;
 import com.krishagni.catissueplus.core.common.util.Utility;
+import com.krishagni.catissueplus.core.exporter.services.ExportService;
 import com.krishagni.rbac.events.SubjectRoleDetail;
 import com.krishagni.rbac.service.RbacService;
 
-public class UserServiceImpl implements UserService {
+public class UserServiceImpl implements UserService, InitializingBean {
 	private static final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
 
 	private static final String DEFAULT_AUTH_DOMAIN = "openspecimen";
@@ -78,6 +89,8 @@ public class UserServiceImpl implements UserService {
 	
 	private RbacService rbacSvc;
 
+	private ExportService exportSvc;
+
 	public void setDaoFactory(DaoFactory daoFactory) {
 		this.daoFactory = daoFactory;
 	}
@@ -94,11 +107,28 @@ public class UserServiceImpl implements UserService {
 		this.rbacSvc = rbacSvc;
 	}
 
+	public void setExportSvc(ExportService exportSvc) {
+		this.exportSvc = exportSvc;
+	}
+
 	@Override
 	@PlusTransactional
 	public ResponseEvent<List<UserSummary>> getUsers(RequestEvent<UserListCriteria> req) {
-		List<UserSummary> users = daoFactory.getUserDao().getUsers(addUserListCriteria(req.getPayload()));
-		return ResponseEvent.response(users);
+		List<User> users = daoFactory.getUserDao().getUsers(addUserListCriteria(req.getPayload()));
+		List<UserSummary> result = UserSummary.from(users);
+
+		if (req.getPayload().includeStat() && CollectionUtils.isNotEmpty(result)) {
+			Collection<Long> userIds = users.stream().map(User::getId).collect(Collectors.toList());
+			Map<Long, Integer> cpCount = daoFactory.getUserDao().getCpCount(userIds);
+			for (UserSummary user : result) {
+				Integer count = cpCount.get(user.getId());
+				if (count != null) {
+					user.setCpCount(count);
+				}
+			}
+		}
+
+		return ResponseEvent.response(result);
 	}
 	
 	@Override
@@ -223,7 +253,6 @@ public class UserServiceImpl implements UserService {
 	@PlusTransactional
 	public ResponseEvent<UserDetail> updateStatus(RequestEvent<UserDetail> req) {
 		try {
-			boolean sendRequestApprovedMail = false;
 			UserDetail detail = req.getPayload();
 			User user =  daoFactory.getUserDao().getById(detail.getId());
 			if (user == null) {
@@ -244,16 +273,11 @@ public class UserServiceImpl implements UserService {
  			
 			if (isActivated(currentStatus, newStatus)) {
 				user.setActivityStatus(Status.ACTIVITY_STATUS_ACTIVE.getStatus());
-				sendRequestApprovedMail = currentStatus.equals(Status.ACTIVITY_STATUS_PENDING.getStatus());
+				onAccountActivation(user, currentStatus);
 			} else if (isLocked(currentStatus, newStatus)) {
 				user.setActivityStatus(Status.ACTIVITY_STATUS_LOCKED.getStatus());
 			}
-			
-			if (sendRequestApprovedMail) {
-				ForgotPasswordToken token = generateForgotPwdToken(user);
-				sendUserCreatedEmail(user, token);
-			}
-			
+
 			return ResponseEvent.response(UserDetail.from(user));
 		} catch (OpenSpecimenException ose) {
 			return ResponseEvent.error(ose);
@@ -290,20 +314,21 @@ public class UserServiceImpl implements UserService {
 			AccessCtrlMgr.getInstance().ensureDeleteUserRights(existing);
 
 			/*
-			 * Appending timestamp to email address, loginName of user while deleting user. 
+			 * Appending timestamp to email address, loginName of user while deleting user.
 			 * To send request reject mail, need original user object.
 			 * So creating user object clone.
 			 */
 			User user = new User();
+			user.setActivityStatus(existing.getActivityStatus());
 			user.update(existing);
-			existing.delete(deleteEntityOp.isClose());
+			existing.delete();
 
 			boolean sendRequestRejectedMail = user.getActivityStatus().equals(Status.ACTIVITY_STATUS_PENDING.getStatus());
 			if (sendRequestRejectedMail) {
 				sendUserRequestRejectedEmail(user);
 			}
 
-			return ResponseEvent.response(UserDetail.from(existing)); 
+			return ResponseEvent.response(UserDetail.from(existing));
 		} catch (OpenSpecimenException ose) {
 			return ResponseEvent.error(ose);
 		} catch (Exception e) {
@@ -386,31 +411,60 @@ public class UserServiceImpl implements UserService {
 	@PlusTransactional
 	public ResponseEvent<Boolean> forgotPassword(RequestEvent<String> req) {
 		try {
-			UserDao dao = daoFactory.getUserDao();
-			String loginName = req.getPayload();
-			User user = dao.getUser(loginName, DEFAULT_AUTH_DOMAIN);
-			if (user == null || !(user.isActive() || user.isExpired())) {
+			UserDao userDao = daoFactory.getUserDao();
+
+			User user = userDao.getUser(req.getPayload(), DEFAULT_AUTH_DOMAIN);
+			if (user == null || user.isPending() || user.isClosed()) {
 				return ResponseEvent.userError(UserErrorCode.NOT_FOUND);
+			} else if (user.isLocked()) {
+				return ResponseEvent.userError(AuthErrorCode.USER_LOCKED);
 			}
-			
-			ForgotPasswordToken oldToken = dao.getFpTokenByUser(user.getId());
+
+			ForgotPasswordToken oldToken = userDao.getFpTokenByUser(user.getId());
 			if (oldToken != null) {
-				dao.deleteFpToken(oldToken);
+				userDao.deleteFpToken(oldToken);
 			}
 			
 			ForgotPasswordToken token = new ForgotPasswordToken(user);
-			dao.saveFpToken(token);
+			userDao.saveFpToken(token);
 			sendForgotPasswordLinkEmail(user, token.getToken());
 			return ResponseEvent.response(true);
 		} catch (Exception e) {
 			return ResponseEvent.serverError(e);
 		}
 	}
-	
+
+	@Override
+	@PlusTransactional
+	public ResponseEvent<List<UserDetail>> bulkUpdateUsers(RequestEvent<BulkEntityDetail<UserDetail>> req) {
+		try {
+			List<UserDetail> updatedUsers = new ArrayList<>();
+
+			BulkEntityDetail<UserDetail> buDetail = req.getPayload();
+			UserDetail detail = curateBulkUpdateFields(buDetail.getDetail());
+			for (Long userId : Utility.nullSafe(buDetail.getIds())) {
+				detail.setId(userId);
+				updatedUsers.add(updateUser(detail, true));
+			}
+
+			detail.setId(null);
+			for (String emailAddress : Utility.nullSafe(buDetail.getNames())) {
+				detail.setEmailAddress(emailAddress);
+				updatedUsers.add(updateUser(detail, true));
+			}
+
+			return ResponseEvent.response(updatedUsers);
+		} catch(OpenSpecimenException ose){
+			return ResponseEvent.error(ose);
+		} catch(Exception e) {
+			return ResponseEvent.serverError(e);
+		}
+	}
+
 	@Override
 	@PlusTransactional
 	public ResponseEvent<List<SubjectRoleDetail>> getCurrentUserRoles() {
-		return rbacSvc.getSubjectRoles(new RequestEvent<Long>(AuthUtil.getCurrentUser().getId()));
+		return rbacSvc.getSubjectRoles(new RequestEvent<>(AuthUtil.getCurrentUser().getId()));
 	}		
 	
 	@Override
@@ -418,14 +472,6 @@ public class UserServiceImpl implements UserService {
 	public ResponseEvent<InstituteDetail> getInstitute(RequestEvent<Long> req) {
 		Institute institute = getInstitute(req.getPayload());
 		return ResponseEvent.response(InstituteDetail.from(institute));
-	}
-
-	private UserListCriteria addUserListCriteria(UserListCriteria crit) {
-		if (!AuthUtil.isAdmin() && !crit.listAll()) {
-			crit.instituteName(getCurrUserInstitute().getName());
-		}
-
-		return crit;
 	}
 
 	@Override
@@ -453,59 +499,90 @@ public class UserServiceImpl implements UserService {
 		}
 	}
 
+	@Override
+	public void afterPropertiesSet() throws Exception {
+		exportSvc.registerObjectsGenerator("user", this::getUsersGenerator);
+	}
+
+	private UserListCriteria addUserListCriteria(UserListCriteria crit) {
+		if (!AuthUtil.isAdmin() && !crit.listAll()) {
+			crit.instituteName(getCurrUserInstitute().getName());
+		}
+
+		return crit;
+	}
+
 	private ResponseEvent<UserDetail> updateUser(RequestEvent<UserDetail> req, boolean partial) {
 		try {
-			UserDetail detail = req.getPayload();
-			Long userId = detail.getId();
-			String emailAddress = detail.getEmailAddress();
-			
-			User existingUser = null; 
-			if (userId != null) {
-				existingUser = daoFactory.getUserDao().getById(userId); 
-			} else if (StringUtils.isNotBlank(emailAddress)) {
-				existingUser = daoFactory.getUserDao().getUserByEmailAddress(emailAddress);
-			}
-			
-			if (existingUser == null) {
-				return ResponseEvent.userError(UserErrorCode.NOT_FOUND);
-			}
-			
-			AccessCtrlMgr.getInstance().ensureUpdateUserRights(existingUser);
-			
-			User user = null;
-			if (partial) {
-				user = userFactory.createUser(existingUser, detail);
-			} else {
-				user = userFactory.createUser(detail);
-			}
-			resetAttrs(existingUser, user);
-
-			AccessCtrlMgr.getInstance().ensureUpdateUserRights(user);
-			
-			OpenSpecimenException ose = new OpenSpecimenException(ErrorType.USER_ERROR);
-
-			ensureUniqueEmail(existingUser, user, ose);
-			ensureUniqueLoginName(existingUser, user, ose);
-			ose.checkAndThrow();
-
-			boolean wasInstituteAdmin = existingUser.isInstituteAdmin();
-			
-			existingUser.update(user);
-			
-			if (!wasInstituteAdmin && existingUser.isInstituteAdmin()) {
-				addDefaultSiteAdminRole(existingUser);
-			} else if (wasInstituteAdmin && !existingUser.isInstituteAdmin()) {
-				removeDefaultSiteAdminRole(existingUser);
-			}
-
-			return ResponseEvent.response(UserDetail.from(existingUser));
+			return ResponseEvent.response(updateUser(req.getPayload(), partial));
 		} catch (OpenSpecimenException ose) {
 			return ResponseEvent.error(ose);
 		} catch (Exception e) {
 			return ResponseEvent.serverError(e);
-		}		
+		}
 	}
-	
+
+	private UserDetail updateUser(UserDetail detail, boolean partial) {
+		User existingUser = getUser(detail.getId(), detail.getEmailAddress());
+
+		if (Status.ACTIVITY_STATUS_DISABLED.getStatus().equals(detail.getActivityStatus())) {
+			AccessCtrlMgr.getInstance().ensureDeleteUserRights(existingUser);
+		} else {
+			AccessCtrlMgr.getInstance().ensureUpdateUserRights(existingUser);
+		}
+
+		User user = null;
+		if (partial) {
+			user = userFactory.createUser(existingUser, detail);
+		} else {
+			user = userFactory.createUser(detail);
+		}
+
+		resetAttrs(existingUser, user);
+
+		OpenSpecimenException ose = new OpenSpecimenException(ErrorType.USER_ERROR);
+		ensureUniqueEmail(existingUser, user, ose);
+		ensureUniqueLoginName(existingUser, user, ose);
+		ose.checkAndThrow();
+
+		boolean wasInstituteAdmin = existingUser.isInstituteAdmin();
+		String prevStatus = existingUser.getActivityStatus();
+		existingUser.update(user);
+
+		if (isActivated(prevStatus, user.getActivityStatus())) {
+			onAccountActivation(user, prevStatus);
+		}
+
+		if (!wasInstituteAdmin && existingUser.isInstituteAdmin()) {
+			addDefaultSiteAdminRole(existingUser);
+		} else if (wasInstituteAdmin && !existingUser.isInstituteAdmin()) {
+			removeDefaultSiteAdminRole(existingUser);
+		}
+
+		return UserDetail.from(existingUser);
+	}
+
+	private User getUser(Long id, String emailAddress) {
+		User user = null;
+		Object key = null;
+
+		if (id != null) {
+			user = daoFactory.getUserDao().getById(id);
+			key = id;
+		} else if (StringUtils.isNotBlank(emailAddress)) {
+			user = daoFactory.getUserDao().getUserByEmailAddress(emailAddress);
+			key = emailAddress;
+		}
+
+		if (key == null) {
+			throw OpenSpecimenException.userError(UserErrorCode.EMAIL_REQUIRED);
+		} else if (user == null) {
+			throw OpenSpecimenException.userError(UserErrorCode.NOT_FOUND, key);
+		}
+
+		return user;
+	}
+
 	private void addDefaultSiteAdminRole(User user) {
 		rbacSvc.addSubjectRole(null, null, user, getDefaultSiteAdminRole());
 	}
@@ -579,7 +656,7 @@ public class UserServiceImpl implements UserService {
 		// their earlier value or default value
 		//
 		newUser.setType(existingUser != null ? existingUser.getType() : User.Type.NONE);
-		newUser.setManageForms(existingUser != null ? existingUser.canManageForms() : false);
+		newUser.setManageForms(existingUser != null && existingUser.canManageForms());
 	}
 	
 	private void ensureUniqueEmail(User existingUser, User newUser, OpenSpecimenException ose) {
@@ -691,5 +768,73 @@ public class UserServiceImpl implements UserService {
 		props.put("$subject", new String[] { detail.getSubject() });
 		props.put("annDetail", detail);
 		emailService.sendEmail(ANNOUNCEMENT_EMAIL_TMPL, adminEmailAddr, rcpts, null, props);
+	}
+
+	private void onAccountActivation(User user, String prevStatus) {
+		if (prevStatus.equals(Status.ACTIVITY_STATUS_PENDING.getStatus())) {
+			ForgotPasswordToken token = generateForgotPwdToken(user);
+			sendUserCreatedEmail(user, token);
+		} else if (prevStatus.equals(Status.ACTIVITY_STATUS_LOCKED.getStatus())) {
+			addAutoLogin(user);
+		}
+	}
+
+	private void addAutoLogin(User user) {
+		LoginAuditLog log = new LoginAuditLog();
+		log.setUser(user);
+		log.setIpAddress("0.0.0.0");
+		log.setLoginTime(Calendar.getInstance().getTime());
+		log.setLogoutTime(log.getLoginTime());
+		log.setLoginSuccessful(true);
+		daoFactory.getAuthDao().saveLoginAuditLog(log);
+	}
+
+	private UserDetail curateBulkUpdateFields(UserDetail input) {
+		UserDetail detail = new UserDetail();
+		if (input.isAttrModified("instituteName")) {
+			detail.setInstituteName(input.getInstituteName());
+		}
+
+		if (input.isAttrModified("primarySite")) {
+			detail.setPrimarySite(input.getPrimarySite());
+		}
+
+		if (input.isAttrModified("type")) {
+			detail.setType(input.getType());
+		}
+
+		if (input.isAttrModified("manageForms")) {
+			detail.setManageForms(input.getManageForms());
+		}
+
+		if (input.isAttrModified("activityStatus")) {
+			detail.setActivityStatus(input.getActivityStatus());
+		}
+
+		return detail;
+	}
+
+	private Supplier<List<? extends Object>> getUsersGenerator() {
+		return new Supplier<List<? extends Object>>() {
+			private boolean endOfUsers;
+
+			private int startAt;
+
+			@Override
+			public List<? extends Object> get() {
+				if (endOfUsers) {
+					return Collections.emptyList();
+				}
+
+				UserListCriteria listCrit = addUserListCriteria(new UserListCriteria().startAt(startAt));
+				List<User> users = daoFactory.getUserDao().getUsers(listCrit);
+				startAt += users.size();
+				if (users.isEmpty()) {
+					endOfUsers = true;
+				}
+
+				return UserDetail.from(users);
+			}
+		};
 	}
 }

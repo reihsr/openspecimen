@@ -51,8 +51,9 @@
     </field>
 
     <field>
+      <multiple>true</multiple>
       <caption>#getMessage("visit_clinical_diagnosis")</caption>
-      <attribute>clinicalDiagnosis</attribute>
+      <attribute>clinicalDiagnoses</attribute>
     </field>
 
     <field>
@@ -78,7 +79,12 @@
     <field>
       <caption>#getMessage("specimen_label")</caption>
       <attribute>label</attribute>
-    </field>  
+    </field>
+
+    <field>
+      <caption>#getMessage("specimen_barcode")</caption>
+      <attribute>barcode</attribute>
+    </field>
 
     <field>
       <caption>#getMessage("specimen_class")</caption>

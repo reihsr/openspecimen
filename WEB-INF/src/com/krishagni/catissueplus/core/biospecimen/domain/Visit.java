@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.krishagni.catissueplus.core.common.CollectionUpdater;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.hibernate.envers.AuditTable;
@@ -52,7 +53,7 @@ public class Visit extends BaseExtensionEntity {
 	
 	private Date visitDate;
 
-	private String clinicalDiagnosis;
+	private Set<String> clinicalDiagnoses = new HashSet<>();
 
 	private String clinicalStatus;
 
@@ -101,6 +102,8 @@ public class Visit extends BaseExtensionEntity {
 	@Autowired
 	private DaoFactory daoFactory;
 	
+	private transient boolean forceDelete;
+	
 	public static String getEntityName() {
 		return ENTITY_NAME;
 	}
@@ -121,12 +124,12 @@ public class Visit extends BaseExtensionEntity {
 		this.visitDate = visitDate;
 	}
 
-	public String getClinicalDiagnosis() {
-		return clinicalDiagnosis;
+	public Set<String> getClinicalDiagnoses() {
+		return clinicalDiagnoses;
 	}
 
-	public void setClinicalDiagnosis(String clinicalDiagnosis) {
-		this.clinicalDiagnosis = clinicalDiagnosis;
+	public void setClinicalDiagnoses(Set<String> clinicalDiagnoses) {
+		this.clinicalDiagnoses = clinicalDiagnoses;
 	}
 
 	public String getClinicalStatus() {
@@ -273,6 +276,14 @@ public class Visit extends BaseExtensionEntity {
 		this.cohort = cohort;
 	}
 
+	public boolean isForceDelete() {
+		return forceDelete;
+	}
+
+	public void setForceDelete(boolean forceDelete) {
+		this.forceDelete = forceDelete;
+	}
+
 	public void setActive() {
 		this.setActivityStatus(Status.ACTIVITY_STATUS_ACTIVE.getStatus());
 	}
@@ -297,6 +308,10 @@ public class Visit extends BaseExtensionEntity {
 		return getCpEvent() == null;
 	}
 
+	public boolean isOfEvent(String eventLabel) {
+		return !isUnplanned() && getCpEvent().getEventLabel().equals(eventLabel);
+	}
+
 	public List<DependentEntityDetail> getDependentEntities() {
 		return DependentEntityDetail.singletonList(Specimen.getEntityName(), getActiveSpecimens()); 
 	}
@@ -312,7 +327,7 @@ public class Visit extends BaseExtensionEntity {
 	}
 	
 	public void delete() {
-		delete(true);
+		delete(!isForceDelete());
 	}
 
 	public void delete(boolean checkDependency) {
@@ -327,15 +342,15 @@ public class Visit extends BaseExtensionEntity {
 		setName(Utility.getDisabledValue(getName(), 255));
 		setActivityStatus(Status.ACTIVITY_STATUS_DISABLED.getStatus());
 	}
-	
+
 	public void update(Visit visit) {
+		setForceDelete(visit.isForceDelete());
 		updateActivityStatus(visit.getActivityStatus());
 		if (!isActive()) {
 			return;
 		}
 		
 		setName(visit.getName());
-		setClinicalDiagnosis(visit.getClinicalDiagnosis());
 		setClinicalStatus(visit.getClinicalStatus());
 		setCpEvent(visit.getCpEvent());
 		setRegistration(visit.getRegistration());
@@ -349,6 +364,7 @@ public class Visit extends BaseExtensionEntity {
 		setCohort(visit.getCohort());
 		setDefNameTmpl(visit.getDefNameTmpl());
 		setExtension(visit.getExtension());
+		CollectionUpdater.update(getClinicalDiagnoses(), visit.getClinicalDiagnoses());
 	}
 
 	public void updateSprName(String sprName) {
@@ -556,10 +572,12 @@ public class Visit extends BaseExtensionEntity {
 	private Specimen createPendingSpecimen(SpecimenRequirement sr, Specimen parent) {
 		Specimen specimen = sr.getSpecimen();
 		specimen.setParentSpecimen(parent);
+		specimen.setVisit(this);
 		specimen.setCollectionStatus(Specimen.PENDING);
-		addSpecimen(specimen);
+
 		specimen.setLabelIfEmpty();
 
+		addSpecimen(specimen);
 		daoFactory.getSpecimenDao().saveOrUpdate(specimen);
 
 		for (SpecimenRequirement poolSr : sr.getOrderedSpecimenPoolReqs()) {
