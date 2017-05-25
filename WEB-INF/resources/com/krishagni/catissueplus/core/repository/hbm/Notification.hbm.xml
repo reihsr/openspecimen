@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!DOCTYPE hibernate-mapping PUBLIC
+    "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+    "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping auto-import="false">
+  <class
+    name="com.krishagni.catissueplus.core.common.domain.Notification"
+    table="CATISSUE_USER">
+	
+    <id name="id" column="IDENTIFIER">
+      <generator class="native">
+        <param name="sequence">OS_NOTIFICATIONS_SEQ</param>
+      </generator>
+    </id>
+
+    <property name="operation" column="OPERATION"/>
+
+    <property name="objectType" column="OBJECT_TYPE"/>
+
+    <property name="objectId"  column="OBJECT_ID"/>
+
+    <property name="message" column="MESSAGE"/>
+    
+    <many-to-one name="createdUser" column="CREATION_USER_ID" lazy="false" fetch="join"/>
+
+    <property name="creationDate" column="CREATION_DATE"/>
+  </class>
+</hibernate-mapping>

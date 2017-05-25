@@ -83,4 +83,99 @@
       baseTableName="OS_EXPORT_JOB_PARAMS" baseColumnNames="JOB_ID"
       referencedTableName="OS_EXPORT_JOBS" referencedColumnNames="IDENTIFIER"/>
   </changeSet>
+  
+  <changeSet author="abhigosavi" id="Os notifications">
+    <createTable tableName="OS_NOTIFICATIONS">
+      <column name="IDENTIFIER" type="${int.type}" autoIncrement="${autoIncrement}">
+        <constraints primaryKey="true" nullable="false"/>
+      </column>
+
+      <column name="OPERATION" type="${text.type}(255)">
+        <constraints nullable="false"/>
+      </column>
+
+      <column name="OBJECT_TYPE" type="${text.type}(255)">
+        <constraints nullable="false"/>
+      </column>
+
+       <column name="OBJECT_ID" type="${int.type}">
+        <constraints nullable="false"/>
+      </column>
+
+      <column name="MESSAGE" type="${text.type}(255)">
+        <constraints nullable="false"/>
+      </column>
+
+	  <column name="CREATION_USER_ID" type="${int.type}">
+        <constraints nullable="false"/>
+      </column>
+      
+      <column name="CREATION_DATE" type="${timestamp.type}">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+  </changeSet>
+  
+  <changeSet author="abhigosavi" id="Os notifications sequence" dbms="oracle">
+    <createSequence
+      sequenceName="OS_NOTIFICATIONS_SEQ"
+      startValue="1"
+      incrementBy="1"
+      ordered="true" />
+  </changeSet>
+  
+  <changeSet author="abhigosavi" id="FK on user for who created notifications">
+    <addForeignKeyConstraint
+      constraintName="FK_NOTIFICATION_USER_ID"
+      baseTableName="OS_NOTIFICATIONS"
+      baseColumnNames="CREATION_USER_ID"
+      referencedTableName="CATISSUE_USER"
+      referencedColumnNames="IDENTIFIER"/>
+  </changeSet>
+  
+  <changeSet author="abhigosavi" id="Os user notifications">
+    <createTable tableName="OS_USER_NOTIFICATIONS">
+	  <column name="IDENTIFIER" type="${int.type}" autoIncrement="${autoIncrement}">
+        <constraints primaryKey="true" nullable="false"/>
+      </column>
+
+      <column name="USER_ID" type="${int.type}">
+        <constraints nullable="false"/>
+      </column>
+
+      <column name="NOTIFICATION_ID" type="${int.type}">
+        <constraints nullable="false"/>
+      </column>
+
+       <column name="STATUS" type="${text.type}(255)">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+  </changeSet>
+  
+  <changeSet author="abhigosavi" id="Os user notifications sequence" dbms="oracle">
+    <createSequence
+      sequenceName="OS_USER_NOTIFICATIONS_SEQ"
+      startValue="1"
+      incrementBy="1"
+      ordered="true" />
+  </changeSet>
+  
+   <changeSet author="abhigosavi" id="FK on user who getting notifications">
+    <addForeignKeyConstraint
+      constraintName="FK_USER_NOTIFICATION_USER_ID"
+      baseTableName="OS_USER_NOTIFICATIONS"
+      baseColumnNames="USER_ID"
+      referencedTableName="CATISSUE_USER"
+      referencedColumnNames="IDENTIFIER"/>
+  </changeSet>
+  
+   <changeSet author="abhigosavi" id="FK on notifications for notification">
+    <addForeignKeyConstraint
+      constraintName="FK_USER_NOTIFICATION_NOTIFY_ID"
+      baseTableName="OS_USER_NOTIFICATIONS"
+      baseColumnNames="NOTIFICATION_ID"
+      referencedTableName="OS_NOTIFICATIONS"
+      referencedColumnNames="IDENTIFIER"/>
+  </changeSet>	
 </databaseChangeLog>
