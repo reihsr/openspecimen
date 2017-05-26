@@ -182,7 +182,7 @@ angular.module('os.administrative.container',
       });
   })
 
-  .run(function($state, $translate, QuickSearchSvc, Container, Alerts) {
+  .run(function($state, $translate, QuickSearchSvc, ObjectStateResolver, Container, Alerts) {
     var opts = {
       template: 'modules/administrative/container/quick-search.html',
       caption: 'entities.container',
@@ -202,5 +202,5 @@ angular.module('os.administrative.container',
     };
 
     QuickSearchSvc.register('container', opts);
-
+    ObjectStateResolver.regState('container', 'container-detail.overview');
   });

@@ -270,6 +270,9 @@ angular.module('os.biospecimen.cp',
           }
         },
         controller: 'CpReportSettingsCtrl'
-      });
+      })
+    })
+    .run(function(ObjectStateResolver) {
+      ObjectStateResolver.regState('cp', 'cp-detail.overview');
     });
   

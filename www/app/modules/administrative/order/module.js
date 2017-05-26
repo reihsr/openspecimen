@@ -129,4 +129,7 @@ angular.module('os.administrative.order',
         },
         parent: 'order-root'
       });
+  })
+  .run(function(ObjectStateResolver) {
+    ObjectStateResolver.regState('order', 'order-detail.overview');
   });

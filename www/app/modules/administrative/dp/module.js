@@ -79,4 +79,7 @@ angular.module('os.administrative.dp',
         controller: 'DpHistoryCtrl',
         parent: 'dp-detail'
       });
+  })
+  .run(function(ObjectStateResolver) {
+    ObjectStateResolver.regState('distributionProtocol', 'dp-detail.overview');
   });

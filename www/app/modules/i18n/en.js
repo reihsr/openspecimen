@@ -2322,5 +2322,10 @@
       "of": "of",
       "many_more": "many more",
       "records": "records"
+    },
+
+    "notif": {
+      "list": "Notifications",
+      "show_more": "Show More Notifications"
     }
 }

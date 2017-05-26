@@ -145,4 +145,7 @@ angular.module('os.administrative.shipment',
         controller: 'ShipmentReceiveCtrl',
         parent: 'shipment-root'
       })
+  })
+  .run(function(ObjectStateResolver) {
+    ObjectStateResolver.regState('shipment', 'shipment-detail.overview');
   });
