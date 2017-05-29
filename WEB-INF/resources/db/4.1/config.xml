@@ -5,11 +5,11 @@
   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
 
-  <changeSet author="abhigosavi" id="enable admin copy emails">
+  <changeSet author="agosavi" id="Setting to enable or disable copying of import email notifications to admin email ID">
     <sql>
       call add_cfg_prop(
-        'notifications', 'enable_admin_copy_emails',
-        'enable_admin_copy_emails', 'enable_admin_copy_emails_desc',
+        'notifications', 'cc_import_emails_to_admin',
+        'cc_import_emails_to_admin', 'cc_import_emails_to_admin_desc',
         'BOOLEAN', 'false'
       );
     </sql>
