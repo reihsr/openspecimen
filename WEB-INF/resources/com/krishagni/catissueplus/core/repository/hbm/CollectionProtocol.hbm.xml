@@ -130,6 +130,11 @@
         <filter name="activeEntity"/>
       </many-to-many>
     </set>
+
+    <set name="distributionProtocols" table="OS_CP_ALLOWED_DPS" inverse="false">
+      <key column="CP_ID"/>
+      <many-to-many class="com.krishagni.catissueplus.core.administrative.domain.DistributionProtocol" column="DP_ID"/>
+    </set>
     
     <filter name="activeEntity"/>
 

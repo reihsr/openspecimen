@@ -16,6 +16,7 @@ import org.hibernate.envers.AuditTable;
 import org.hibernate.envers.Audited;
 import org.hibernate.envers.NotAudited;
 
+import com.krishagni.catissueplus.core.administrative.domain.DistributionProtocol;
 import com.krishagni.catissueplus.core.administrative.domain.Site;
 import com.krishagni.catissueplus.core.administrative.domain.StorageContainer;
 import com.krishagni.catissueplus.core.administrative.domain.User;
@@ -132,6 +133,8 @@ public class CollectionProtocol extends BaseExtensionEntity {
 	private Set<StorageContainer> storageContainers = new HashSet<StorageContainer>();
 	
 	private Set<CollectionProtocolRegistration> collectionProtocolRegistrations = new HashSet<CollectionProtocolRegistration>();
+
+	private Set<DistributionProtocol> distributionProtocols = new HashSet<>();
 	
 	public static String getEntityName() {
 		return ENTITY_NAME;
@@ -481,6 +484,15 @@ public class CollectionProtocol extends BaseExtensionEntity {
 		this.collectionProtocolRegistrations = collectionProtocolRegistrations;
 	}
 
+	@NotAudited
+	public Set<DistributionProtocol> getDistributionProtocols() {
+		return distributionProtocols;
+	}
+
+	public void setDistributionProtocols(Set<DistributionProtocol> distributionProtocols) {
+		this.distributionProtocols = distributionProtocols;
+	}
+
 	public void update(CollectionProtocol cp) {
 		setTitle(cp.getTitle()); 
 		setShortTitle(cp.getShortTitle());
@@ -516,6 +528,7 @@ public class CollectionProtocol extends BaseExtensionEntity {
 		updateSpecimenLabelPrintSettings(cp.getSpmnLabelPrintSettings());
 		CollectionUpdater.update(this.coordinators, cp.getCoordinators());
 		updateLabelPrePrintMode(cp.getSpmnLabelPrePrintMode());
+		CollectionUpdater.update(this.distributionProtocols, cp.getDistributionProtocols());
 	}
 	
 	public void copyTo(CollectionProtocol cp) {

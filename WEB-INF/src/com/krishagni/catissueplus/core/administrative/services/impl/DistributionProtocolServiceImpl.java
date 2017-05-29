@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,8 +32,10 @@ import com.krishagni.catissueplus.core.administrative.events.DprStat;
 import com.krishagni.catissueplus.core.administrative.repository.DpListCriteria;
 import com.krishagni.catissueplus.core.administrative.repository.DpRequirementDao;
 import com.krishagni.catissueplus.core.administrative.services.DistributionProtocolService;
+import com.krishagni.catissueplus.core.biospecimen.domain.CollectionProtocol;
 import com.krishagni.catissueplus.core.biospecimen.domain.ConsentStatement;
 import com.krishagni.catissueplus.core.biospecimen.domain.factory.ConsentStatementErrorCode;
+import com.krishagni.catissueplus.core.biospecimen.domain.factory.CpErrorCode;
 import com.krishagni.catissueplus.core.biospecimen.repository.DaoFactory;
 import com.krishagni.catissueplus.core.common.PlusTransactional;
 import com.krishagni.catissueplus.core.common.access.AccessCtrlMgr;
@@ -533,7 +536,24 @@ public class DistributionProtocolServiceImpl implements DistributionProtocolServ
 		if (siteIds != null && CollectionUtils.isEmpty(siteIds)) {
 			throw OpenSpecimenException.userError(RbacErrorCode.ACCESS_DENIED);
 		}
-		
+
+		if (StringUtils.isNotBlank(crit.cpShortTitle())) {
+			CollectionProtocol cp = daoFactory.getCollectionProtocolDao().getCpByShortTitle(crit.cpShortTitle());
+			if (cp == null) {
+				throw OpenSpecimenException.userError(CpErrorCode.NOT_FOUND);
+			}
+
+			Set<Long> cpSiteIds = Utility.collect(cp.getSites(), "site.id", true);
+			if (siteIds != null) {
+				siteIds = new HashSet<>(CollectionUtils.intersection(siteIds, cpSiteIds));
+				if (CollectionUtils.isEmpty(siteIds)) {
+					throw OpenSpecimenException.userError(DistributionProtocolErrorCode.NO_DP_FOR_CP, cp.getShortTitle());
+				}
+			} else {
+				siteIds = cpSiteIds;
+			}
+		}
+
 		if (siteIds != null) {
 			crit.siteIds(siteIds);
 		}

@@ -312,6 +312,13 @@
       "Aliquot": "Aliquot"
     },
 
+    "dp": {
+      "title": "Distribution Protocol settings",
+      "dp": "Distribution Protocol",
+      "add_dp": "Add Distribution Protocol",
+      "dup_dp": "The distribution protocol already added to CP."
+    },
+
     "reporting": {
       "title": "Monthly Report Settings",
       "add": "Customise Report",
