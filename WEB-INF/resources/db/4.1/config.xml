@@ -5,7 +5,7 @@
   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
 
-  <changeSet author="abhigosavi" id="system lockdown">
+  <changeSet author="agosavi" id="Setting to enable or disable system lockdown">
     <sql>
       call add_cfg_prop(
         'administrative', 'system_lockdown',

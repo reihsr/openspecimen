@@ -54,15 +54,14 @@ public class UserAuthenticationServiceImpl implements UserAuthenticationService 
 		User user = null;
 		try {
 			user = daoFactory.getUserDao().getUser(loginDetail.getLoginName(), loginDetail.getDomainName());
-			
-			if (!user.isAdmin() && ConfigUtil.getInstance().getBoolSetting("administrative", "system_lockdown", false)) {
-				throw OpenSpecimenException.userError(AuthErrorCode.SYSTEM_LOCKDOWN);
-			}
-
 			if (user == null) {
 				throw OpenSpecimenException.userError(AuthErrorCode.INVALID_CREDENTIALS);
 			}
-			
+
+			if (!user.isAdmin() && isSystemLockedDown()) {
+				throw OpenSpecimenException.userError(AuthErrorCode.SYSTEM_LOCKDOWN);
+			}
+
 			if (user.getActivityStatus().equals(Status.ACTIVITY_STATUS_LOCKED.getStatus())) {
 				throw OpenSpecimenException.userError(AuthErrorCode.USER_LOCKED);
 			}
@@ -112,7 +111,7 @@ public class UserAuthenticationServiceImpl implements UserAuthenticationService 
 			User user = authToken.getUser();
 			long timeSinceLastApiCall = auditService.getTimeSinceLastApiCall(user.getId(), token);
 			int tokenInactiveInterval = AuthConfig.getInstance().getTokenInactiveIntervalInMinutes();
-			if (!user.isAdmin() && ConfigUtil.getInstance().getBoolSetting("administrative", "system_lockdown", false)) {
+			if (!user.isAdmin() && isSystemLockedDown()) {
 				throw OpenSpecimenException.userError(AuthErrorCode.SYSTEM_LOCKDOWN);
 			}
 
@@ -228,5 +227,9 @@ public class UserAuthenticationServiceImpl implements UserAuthenticationService 
 		userAuditLog.setCallEndTime(Calendar.getInstance().getTime());
 		userAuditLog.setLoginAuditLog(loginAuditLog);
 		auditService.insertApiCallLog(userAuditLog);
+	}
+
+	private boolean isSystemLockedDown() {
+		return ConfigUtil.getInstance().getBoolSetting("administrative", "system_lockdown", false);
 	}
 }
