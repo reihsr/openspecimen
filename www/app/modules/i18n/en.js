@@ -2223,13 +2223,13 @@
         "server_port": "Email Server Port",
         "server_port_desc": "Email server port.",
         "starttls_enabled": "StartTLS",
-        "starttls_enabled_desc": "Enable if StartTLS is to be used for your email server.",
-        "email_disable": "Disable Emails",
-        "email_disable_desc": "Enable to stop OpenSpecimen from sending any emails."
+        "starttls_enabled_desc": "Enable if StartTLS is to be used for your email server."
       },
 
       "notifications": {
         "title": "Notifications",
+        "all": "Email Notifications",
+        "all_desc": "Enable or disable email notifications sent by OpenSpecimen. When disabled, no email notifications are sent irrespective individual notification setting.",
         "email_order_distributed": "Order Distributed",
         "email_order_distributed_desc": "Send an email when specimens are distributed.",
         "email_query_export_data": "Query Data Exported",
