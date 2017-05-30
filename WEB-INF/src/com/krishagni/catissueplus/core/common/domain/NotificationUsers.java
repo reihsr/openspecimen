@@ -1,13 +1,9 @@
 package com.krishagni.catissueplus.core.common.domain;
 
-import org.springframework.beans.factory.annotation.Configurable;
-
 import com.krishagni.catissueplus.core.administrative.domain.User;
 import com.krishagni.catissueplus.core.biospecimen.domain.BaseEntity;
 
-@Configurable
 public class NotificationUsers extends BaseEntity {
-
 	private User user;
 	
 	private Notification notification;

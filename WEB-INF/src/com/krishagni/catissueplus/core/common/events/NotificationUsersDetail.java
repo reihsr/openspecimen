@@ -2,24 +2,20 @@ package com.krishagni.catissueplus.core.common.events;
 
 import org.codehaus.jackson.map.annotate.JsonSerialize;
 
-import com.krishagni.catissueplus.core.common.ListenAttributeChanges;
-
 @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
-@ListenAttributeChanges
 public class NotificationUsersDetail {
-
-	private long userId;
+	private UserSummary user;
 	
 	private long notificationId;
 	
 	private String status;
 
-	public long getUserId() {
-		return userId;
+	public UserSummary getUser() {
+		return user;
 	}
 
-	public void setUserId(long userId) {
-		this.userId = userId;
+	public void setUser(UserSummary user) {
+		this.user = user;
 	}
 
 	public long getNotificationId() {

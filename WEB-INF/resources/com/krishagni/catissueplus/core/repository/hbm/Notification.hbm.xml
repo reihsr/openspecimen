@@ -14,7 +14,7 @@
       </generator>
     </id>
 
-    <property name="operationType" column="OPERATION_TYPE"/>
+    <property name="operation" column="OPERATION"/>
 
     <property name="entityType" column="ENTITY_TYPE"/>
 

@@ -1,18 +1,14 @@
 package com.krishagni.catissueplus.core.common.domain;
 
 import java.util.Date;
-import java.util.LinkedList;
-import java.util.List;
-
-import org.springframework.beans.factory.annotation.Configurable;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.krishagni.catissueplus.core.administrative.domain.User;
 import com.krishagni.catissueplus.core.biospecimen.domain.BaseEntity;
 
-@Configurable
 public class Notification extends BaseEntity {
-
-	private String operationType;
+	private String operation;
 
 	private String entityType;
 
@@ -24,14 +20,14 @@ public class Notification extends BaseEntity {
 	
 	private Date creationTime;
 	
-	private List<User> users = new LinkedList<User>();
+	private Set<User> users = new HashSet<User>();
 
-	public String getOperationType() {
-		return operationType;
+	public String getOperation() {
+		return operation;
 	}
 
-	public void setOperationType(String operationType) {
-		this.operationType = operationType;
+	public void setOperation(String operation) {
+		this.operation = operation;
 	}
 
 	public String getEntityType() {
@@ -74,11 +70,11 @@ public class Notification extends BaseEntity {
 		this.creationTime = creationTime;
 	}
 
-	public List<User> getUsers() {
+	public Set<User> getUsers() {
 		return users;
 	}
 
-	public void setUsers(List<User> users) {
+	public void setUsers(Set<User> users) {
 		this.users = users;
 	}
 }

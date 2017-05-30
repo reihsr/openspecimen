@@ -90,11 +90,11 @@
         <constraints primaryKey="true" nullable="false"/>
       </column>
 
-      <column name="OPERATION_TYPE" type="${text.type}(255)">
+      <column name="OPERATION" type="${text.type}(16)">
         <constraints nullable="false"/>
       </column>
 
-      <column name="ENTITY_TYPE" type="${text.type}(255)">
+      <column name="ENTITY_TYPE" type="${text.type}(64)">
         <constraints nullable="false"/>
       </column>
 
@@ -124,7 +124,7 @@
       ordered="true" />
   </changeSet>
   
-  <changeSet author="agosavi" id="FK on user for who created notifications">
+  <changeSet author="agosavi" id="Add FK on notification created user">
     <addForeignKeyConstraint
       constraintName="FK_NOTIFICATION_CREATED_BY"
       baseTableName="OS_NOTIFICATIONS"
@@ -161,7 +161,7 @@
       ordered="true" />
   </changeSet>
   
-   <changeSet author="agosavi" id="FK on user who getting notifications">
+  <changeSet author="agosavi" id="Add FK on notification user.">
     <addForeignKeyConstraint
       constraintName="FK_NOTIF_USERS_USER_ID"
       baseTableName="OS_NOTIFICATION_USERS"
@@ -170,7 +170,7 @@
       referencedColumnNames="IDENTIFIER"/>
   </changeSet>
   
-   <changeSet author="agosavi" id="FK on notification user">
+  <changeSet author="agosavi" id="Add FK on notification">
     <addForeignKeyConstraint
       constraintName="FK_NOTIF_USERS_NOTIFY_ID"
       baseTableName="OS_NOTIFICATION_USERS"

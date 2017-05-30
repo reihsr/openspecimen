@@ -1,17 +1,13 @@
 package com.krishagni.catissueplus.core.common.events;
 
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.codehaus.jackson.map.annotate.JsonSerialize;
 
-import com.krishagni.catissueplus.core.common.ListenAttributeChanges;
-
 @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
-@ListenAttributeChanges
 public class NotificationDetail {
-
 	private Long id;
 	
 	private String operationType;
@@ -26,7 +22,7 @@ public class NotificationDetail {
 	
 	private Date creationTime;
 	
-	private List<Long> users = new ArrayList<Long>();
+	private Set<UserSummary> users = new HashSet<UserSummary>();
 
 	public Long getId() {
 		return id;
@@ -84,11 +80,11 @@ public class NotificationDetail {
 		this.creationTime = creationTime;
 	}
 
-	public List<Long> getUsers() {
+	public Set<UserSummary> getUsers() {
 		return users;
 	}
 
-	public void setUsers(List<Long> users) {
+	public void setUsers(Set<UserSummary> users) {
 		this.users = users;
 	}
 }
