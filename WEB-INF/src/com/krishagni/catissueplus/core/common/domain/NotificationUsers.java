@@ -6,7 +6,7 @@ import com.krishagni.catissueplus.core.administrative.domain.User;
 import com.krishagni.catissueplus.core.biospecimen.domain.BaseEntity;
 
 @Configurable
-public class UserNotification extends BaseEntity {
+public class NotificationUsers extends BaseEntity {
 
 	private User user;
 	

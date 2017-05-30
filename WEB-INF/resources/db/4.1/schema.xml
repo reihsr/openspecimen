@@ -84,39 +84,39 @@
       referencedTableName="OS_EXPORT_JOBS" referencedColumnNames="IDENTIFIER"/>
   </changeSet>
   
-  <changeSet author="abhigosavi" id="Os notifications">
+  <changeSet author="agosavi" id="Notifications table">
     <createTable tableName="OS_NOTIFICATIONS">
       <column name="IDENTIFIER" type="${int.type}" autoIncrement="${autoIncrement}">
         <constraints primaryKey="true" nullable="false"/>
       </column>
 
-      <column name="OPERATION" type="${text.type}(255)">
+      <column name="OPERATION_TYPE" type="${text.type}(255)">
         <constraints nullable="false"/>
       </column>
 
-      <column name="OBJECT_TYPE" type="${text.type}(255)">
+      <column name="ENTITY_TYPE" type="${text.type}(255)">
         <constraints nullable="false"/>
       </column>
 
-       <column name="OBJECT_ID" type="${int.type}">
+      <column name="ENTITY_ID" type="${int.type}">
         <constraints nullable="false"/>
       </column>
 
-      <column name="MESSAGE" type="${text.type}(255)">
+      <column name="MESSAGE" type="${text.type}(512)">
         <constraints nullable="false"/>
       </column>
 
-	  <column name="CREATION_USER_ID" type="${int.type}">
+	  <column name="CREATED_BY" type="${int.type}">
         <constraints nullable="false"/>
       </column>
       
-      <column name="CREATION_DATE" type="${timestamp.type}">
+      <column name="CREATION_TIME" type="${timestamp.type}">
         <constraints nullable="false"/>
       </column>
     </createTable>
   </changeSet>
   
-  <changeSet author="abhigosavi" id="Os notifications sequence" dbms="oracle">
+  <changeSet author="agosavi" id="Notifications sequence" dbms="oracle">
     <createSequence
       sequenceName="OS_NOTIFICATIONS_SEQ"
       startValue="1"
@@ -124,17 +124,17 @@
       ordered="true" />
   </changeSet>
   
-  <changeSet author="abhigosavi" id="FK on user for who created notifications">
+  <changeSet author="agosavi" id="FK on user for who created notifications">
     <addForeignKeyConstraint
-      constraintName="FK_NOTIFICATION_USER_ID"
+      constraintName="FK_NOTIFICATION_CREATED_BY"
       baseTableName="OS_NOTIFICATIONS"
-      baseColumnNames="CREATION_USER_ID"
+      baseColumnNames="CREATED_BY"
       referencedTableName="CATISSUE_USER"
       referencedColumnNames="IDENTIFIER"/>
   </changeSet>
   
-  <changeSet author="abhigosavi" id="Os user notifications">
-    <createTable tableName="OS_USER_NOTIFICATIONS">
+  <changeSet author="agosavi" id="Notification users">
+    <createTable tableName="OS_NOTIFICATION_USERS">
 	  <column name="IDENTIFIER" type="${int.type}" autoIncrement="${autoIncrement}">
         <constraints primaryKey="true" nullable="false"/>
       </column>
@@ -147,33 +147,33 @@
         <constraints nullable="false"/>
       </column>
 
-       <column name="STATUS" type="${text.type}(255)">
+      <column name="STATUS" type="${text.type}(255)">
         <constraints nullable="false"/>
       </column>
     </createTable>
   </changeSet>
   
-  <changeSet author="abhigosavi" id="Os user notifications sequence" dbms="oracle">
+  <changeSet author="agosavi" id="Notifications user sequence" dbms="oracle">
     <createSequence
-      sequenceName="OS_USER_NOTIFICATIONS_SEQ"
+      sequenceName="OS_NOTIFICATION_USERS_SEQ"
       startValue="1"
       incrementBy="1"
       ordered="true" />
   </changeSet>
   
-   <changeSet author="abhigosavi" id="FK on user who getting notifications">
+   <changeSet author="agosavi" id="FK on user who getting notifications">
     <addForeignKeyConstraint
-      constraintName="FK_USER_NOTIFICATION_USER_ID"
-      baseTableName="OS_USER_NOTIFICATIONS"
+      constraintName="FK_NOTIF_USERS_USER_ID"
+      baseTableName="OS_NOTIFICATION_USERS"
       baseColumnNames="USER_ID"
       referencedTableName="CATISSUE_USER"
       referencedColumnNames="IDENTIFIER"/>
   </changeSet>
   
-   <changeSet author="abhigosavi" id="FK on notifications for notification">
+   <changeSet author="agosavi" id="FK on notification user">
     <addForeignKeyConstraint
-      constraintName="FK_USER_NOTIFICATION_NOTIFY_ID"
-      baseTableName="OS_USER_NOTIFICATIONS"
+      constraintName="FK_NOTIF_USERS_NOTIFY_ID"
+      baseTableName="OS_NOTIFICATION_USERS"
       baseColumnNames="NOTIFICATION_ID"
       referencedTableName="OS_NOTIFICATIONS"
       referencedColumnNames="IDENTIFIER"/>

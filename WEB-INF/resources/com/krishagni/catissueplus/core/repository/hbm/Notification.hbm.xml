@@ -6,7 +6,7 @@
 <hibernate-mapping auto-import="false">
   <class
     name="com.krishagni.catissueplus.core.common.domain.Notification"
-    table="CATISSUE_USER">
+    table="OS_NOTIFICATIONS">
 	
     <id name="id" column="IDENTIFIER">
       <generator class="native">
@@ -14,16 +14,16 @@
       </generator>
     </id>
 
-    <property name="operation" column="OPERATION"/>
+    <property name="operationType" column="OPERATION_TYPE"/>
 
-    <property name="objectType" column="OBJECT_TYPE"/>
+    <property name="entityType" column="ENTITY_TYPE"/>
 
-    <property name="objectId"  column="OBJECT_ID"/>
+    <property name="entityId"  column="ENTITY_ID"/>
 
     <property name="message" column="MESSAGE"/>
     
-    <many-to-one name="createdUser" column="CREATION_USER_ID" lazy="false" fetch="join"/>
+    <many-to-one name="createdBy" column="CREATED_BY"/>
 
-    <property name="creationDate" column="CREATION_DATE"/>
+    <property name="creationTime" column="CREATION_TIME"/>
   </class>
 </hibernate-mapping>

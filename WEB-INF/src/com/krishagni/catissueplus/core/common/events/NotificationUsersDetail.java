@@ -6,7 +6,7 @@ import com.krishagni.catissueplus.core.common.ListenAttributeChanges;
 
 @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
 @ListenAttributeChanges
-public class UserNotificationDetail {
+public class NotificationUsersDetail {
 
 	private long userId;
 	

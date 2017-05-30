@@ -5,8 +5,8 @@
 
 <hibernate-mapping auto-import="false">
   <class
-    name="com.krishagni.catissueplus.core.common.domain.UserNotification"
-    table="OS_USER_NOTIFICATIONS">
+    name="com.krishagni.catissueplus.core.common.domain.NotificationUsers"
+    table="OS_NOTIFICATION_USERS">
 	
     <id name="id" column="IDENTIFIER">
       <generator class="native">
@@ -14,9 +14,9 @@
       </generator>
     </id>
 
-    <many-to-one name="user" column="USER_ID" lazy="false" fetch="join"/>
+    <many-to-one name="user" column="USER_ID"/>
     
-    <many-to-one name="notification" column="NOTIFICATION_ID" lazy="false" fetch="join"/>
+    <many-to-one name="notification" column="NOTIFICATION_ID"/>
     
     <property name="status" column="STATUS"/>
   </class>

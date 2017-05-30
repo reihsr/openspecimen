@@ -1,6 +1,8 @@
 package com.krishagni.catissueplus.core.common.domain;
 
 import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Configurable;
 
@@ -10,48 +12,42 @@ import com.krishagni.catissueplus.core.biospecimen.domain.BaseEntity;
 @Configurable
 public class Notification extends BaseEntity {
 
-	private String operation;
+	private String operationType;
 
-	private String objectType;
+	private String entityType;
 
-	private long objectId;
+	private long entityId;
 
 	private String message;
 
-	private User createdUser;
+	private User createdBy;
 	
-	private Date creationDate;
+	private Date creationTime;
+	
+	private List<User> users = new LinkedList<User>();
 
-	public User getCreatedUser() {
-		return createdUser;
+	public String getOperationType() {
+		return operationType;
 	}
 
-	public void setCreatedUser(User createdUser) {
-		this.createdUser = createdUser;
+	public void setOperationType(String operationType) {
+		this.operationType = operationType;
 	}
 
-	public String getOperation() {
-		return operation;
+	public String getEntityType() {
+		return entityType;
 	}
 
-	public void setOperation(String operation) {
-		this.operation = operation;
+	public void setEntityType(String entityType) {
+		this.entityType = entityType;
 	}
 
-	public String getObjectType() {
-		return objectType;
+	public long getEntityId() {
+		return entityId;
 	}
 
-	public void setObjectType(String objectType) {
-		this.objectType = objectType;
-	}
-
-	public long getObjectId() {
-		return objectId;
-	}
-
-	public void setObjectId(long objectId) {
-		this.objectId = objectId;
+	public void setEntityId(long entityId) {
+		this.entityId = entityId;
 	}
 
 	public String getMessage() {
@@ -62,11 +58,27 @@ public class Notification extends BaseEntity {
 		this.message = message;
 	}
 
-	public Date getCreationDate() {
-		return creationDate;
+	public User getCreatedBy() {
+		return createdBy;
 	}
 
-	public void setCreationDate(Date creationDate) {
-		this.creationDate = creationDate;
+	public void setCreatedBy(User createdBy) {
+		this.createdBy = createdBy;
+	}
+
+	public Date getCreationTime() {
+		return creationTime;
+	}
+
+	public void setCreationTime(Date creationTime) {
+		this.creationTime = creationTime;
+	}
+
+	public List<User> getUsers() {
+		return users;
+	}
+
+	public void setUsers(List<User> users) {
+		this.users = users;
 	}
 }
