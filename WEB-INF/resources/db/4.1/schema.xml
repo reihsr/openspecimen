@@ -106,7 +106,7 @@
         <constraints nullable="false"/>
       </column>
 
-	  <column name="CREATED_BY" type="${int.type}">
+      <column name="CREATED_BY" type="${int.type}">
         <constraints nullable="false"/>
       </column>
       
