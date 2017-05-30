@@ -6,7 +6,7 @@ import org.codehaus.jackson.map.annotate.JsonSerialize;
 public class NotificationUsersDetail {
 	private UserSummary user;
 	
-	private long notificationId;
+	private NotificationDetail notification;
 	
 	private String status;
 
@@ -18,12 +18,12 @@ public class NotificationUsersDetail {
 		this.user = user;
 	}
 
-	public long getNotificationId() {
-		return notificationId;
+	public NotificationDetail getNotification() {
+		return notification;
 	}
 
-	public void setNotificationId(long notificationId) {
-		this.notificationId = notificationId;
+	public void setNotification(NotificationDetail notification) {
+		this.notification = notification;
 	}
 
 	public String getStatus() {
