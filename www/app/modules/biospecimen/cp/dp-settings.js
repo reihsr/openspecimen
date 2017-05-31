@@ -4,23 +4,23 @@ angular.module('os.biospecimen.cp.dp', [])
     var defDps = undefined;
     function init() {
       $scope.dpCtx = {
-        allowedDps: [],
+        cp: angular.copy(cp),
+        savedDps: [],
         editAllowed: AuthorizationService.isAllowed($scope.cpResource.updateOpts)
       };
 
-      initCpDps();
       loadDps();
     }
 
     function initCpDps() {
-      var allowedDps = angular.copy(cp.distributionProtocols);
-      angular.forEach(allowedDps, addDisplayValue);
-      $scope.dpCtx.allowedDps = allowedDps;
-      return allowedDps;
+      var savedDps = angular.copy(cp.distributionProtocols);
+      angular.forEach(savedDps, addDisplayValue);
+      $scope.dpCtx.savedDps = savedDps;
+      return savedDps;
     }
 
     function loadDps(searchString) {
-      if (defDps && !searchString) {
+      if (defDps && (!searchString || defDps.length < 100)) {
         $scope.dpCtx.dps = defDps;
         return;
       }
@@ -32,6 +32,10 @@ angular.module('os.biospecimen.cp.dp', [])
 
           if (!searchString) {
             defDps = dps;
+
+            if (dps.length == 0) {
+              Alerts.error('cp.dp.no_dp');
+            }
           }
         }
       );
@@ -41,13 +45,36 @@ angular.module('os.biospecimen.cp.dp', [])
       return angular.extend(obj, {itemKey: obj.shortTitle, displayValue: obj.shortTitle});
     }
 
+    function addDp(dp) {
+      var dupDp = $scope.dpCtx.cp.distributionProtocols.some(
+        function(savedDp) {
+          return savedDp.shortTitle == dp.itemKey;
+        }
+      );
+
+      if (dupDp) {
+        Alerts.error('cp.dp.dup_dp');
+        return false;
+      }
+
+      $scope.dpCtx.cp.distributionProtocols.push({shortTitle: dp.itemKey});
+      return true;
+    }
+
+    function removeDp(dp) {
+      var retainedDps = $scope.dpCtx.cp.distributionProtocols.filter(
+        function(savedDp) {
+          return savedDp.shortTitle != dp.itemKey;
+        }
+      );
+
+      $scope.dpCtx.cp.distributionProtocols = retainedDps;
+    }
+
+
     $scope.loadDps = loadDps;
 
     $scope.listChanged = function(action, dp) {
-      delete cp.repositoryNames;
-      delete cp.extensionDetail;
-      delete cp.catalogSetting;
-
       switch(action) {
         case 'add':
           if (!addDp(dp)) {
@@ -55,9 +82,11 @@ angular.module('os.biospecimen.cp.dp', [])
           }
 
           break;
+
         case 'remove':
           removeDp(dp);
           break;
+
         case 'update':
           removeDp({itemKey: dp.shortTitle});
           if (!addDp({itemKey: dp.displayValue})) {
@@ -65,37 +94,15 @@ angular.module('os.biospecimen.cp.dp', [])
           }
       }
 
-      return cp.$saveOrUpdate().then(
+      delete $scope.dpCtx.cp.repositoryNames;
+      delete $scope.dpCtx.cp.extensionDetail;
+      delete $scope.dpCtx.cp.catalogSetting;
+      return $scope.dpCtx.cp.$saveOrUpdate().then(
         function(savedCp) {
-          cp.distributionProtocols = savedCp.distributionProtocols;
+          angular.extend(cp, savedCp);
           return initCpDps();
         }
       );
-    }
-
-    function addDp(dp) {
-      var error = false;
-      angular.forEach(cp.distributionProtocols, function(cpDp) {
-        if (cpDp.shortTitle == dp.itemKey) {
-          Alerts.error('cp.dp.dup_dp');
-          error = true;
-        }
-      });
-
-      if (error) {
-        return;
-      }
-
-      cp.distributionProtocols.push({shortTitle: dp.itemKey});
-      return cp.distributionProtocols;
-    }
-
-    function removeDp(dp) {
-      var filteredDps = cp.distributionProtocols.filter(function(cpDp) {
-        return cpDp.shortTitle != dp.itemKey;
-      });
-
-      cp.distributionProtocols = filteredDps;
     }
 
     init();

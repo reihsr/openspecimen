@@ -154,13 +154,10 @@ public class CollectionProtocolFactoryImpl implements CollectionProtocolFactory 
 			input.setEndDate(cp.getEndDate());
 		}
 
-		if (CollectionUtils.isNotEmpty(input.getDistributionProtocols())) {
-			setDistributionProtocolSettings(input, cp, ose);
-		}
-
 		setDate(input, cp, ose);
 		cp.setSopDocumentUrl(input.getSopDocumentUrl());
 		cp.setSopDocumentName(input.getSopDocumentName());
+		setDistributionProtocolSettings(input, cp, ose);
 		ose.checkAndThrow();
 		return cp;
 	}
@@ -453,6 +450,10 @@ public class CollectionProtocolFactoryImpl implements CollectionProtocolFactory 
 	}
 
 	private void setDistributionProtocolSettings(CollectionProtocolDetail input, CollectionProtocol result, OpenSpecimenException ose) {
+		if (input.getDistributionProtocols() == null) {
+			return;
+		}
+
 		Set<DistributionProtocol> dps = new HashSet<>();
 		for (DistributionProtocolSummary dpDetail : input.getDistributionProtocols()) {
 			dps.add(getDistributionProtocol(dpDetail.getId(), dpDetail.getShortTitle(), dpDetail.getTitle(), ose));

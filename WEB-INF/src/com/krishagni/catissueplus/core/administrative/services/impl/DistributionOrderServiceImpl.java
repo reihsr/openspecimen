@@ -38,7 +38,6 @@ import com.krishagni.catissueplus.core.administrative.events.DistributionOrderSu
 import com.krishagni.catissueplus.core.administrative.events.ReturnedSpecimenDetail;
 import com.krishagni.catissueplus.core.administrative.events.StorageLocationSummary;
 import com.krishagni.catissueplus.core.administrative.services.DistributionOrderService;
-import com.krishagni.catissueplus.core.biospecimen.domain.CollectionProtocol;
 import com.krishagni.catissueplus.core.biospecimen.domain.Specimen;
 import com.krishagni.catissueplus.core.biospecimen.domain.factory.SpecimenErrorCode;
 import com.krishagni.catissueplus.core.biospecimen.events.SpecimenInfo;
@@ -397,7 +396,7 @@ public class DistributionOrderServiceImpl implements DistributionOrderService, O
 			return;
 		}
 
-		ensureValidDpForSpecimens(specimens, specimenMap, order.getDistributionProtocol(), ose);
+		ensureDpValidity(specimens, specimenMap, order.getDistributionProtocol(), ose);
 
 		int stmtsCount = order.getDistributionProtocol().getConsentTiers().size();
 		if (stmtsCount > 0) {
@@ -409,32 +408,27 @@ public class DistributionOrderServiceImpl implements DistributionOrderService, O
 		}
 	}
 
-	private void ensureValidDpForSpecimens(List<Specimen> specimens, Map<Long, Specimen> specimenMap, DistributionProtocol dp, OpenSpecimenException ose) {
-		List<Specimen> spmnWithCpDps = specimens.stream()
-			.filter(spmn -> CollectionUtils.isNotEmpty(spmn.getCollectionProtocol().getDistributionProtocols()))
+	private void ensureDpValidity(List<Specimen> specimens, Map<Long, Specimen> specimenMap, DistributionProtocol dp, OpenSpecimenException ose) {
+		List<Specimen> spmnWithDps = specimens.stream()
+			.filter(spmn -> !spmn.getDistributionProtocols().isEmpty())
 			.collect(Collectors.toList());
 
-		if (CollectionUtils.isNotEmpty(spmnWithCpDps)) {
-			Set<CollectionProtocol> cps = Utility.collect(spmnWithCpDps, "collectionProtocol", true);
-			Map<Long, List<Long>> cpDpIds = new HashMap<>();
-			cps.stream().forEach(cp -> cpDpIds.put(cp.getId(), Utility.collect(cp.getDistributionProtocols(), "id")));
-			List<String> cpDpNotAllowedLabels = spmnWithCpDps.stream()
-				.filter(spmn -> !cpDpIds.get(spmn.getCollectionProtocol().getId()).contains(dp.getId()))
-				.map(Specimen::getLabel)
-				.collect(Collectors.toList());
+		List<String> resvForOthDps = spmnWithDps.stream()
+			.filter(spmn -> !spmn.getDistributionProtocols().contains(dp))
+			.map(Specimen::getLabel)
+			.collect(Collectors.toList());
 
-			if (CollectionUtils.isNotEmpty(cpDpNotAllowedLabels)) {
-				ose.addError(DistributionOrderErrorCode.INVALID_SPMN_FOR_DP_IN_CP, cpDpNotAllowedLabels, cpDpNotAllowedLabels.size());
-			}
+		if (!resvForOthDps.isEmpty()) {
+			ose.addError(DistributionOrderErrorCode.SPMN_RESV_FOR_OTH_DPS, resvForOthDps, resvForOthDps.size());
 		}
 
-		List<Specimen> spmnWithoutCpDps = new ArrayList<>(CollectionUtils.removeAll(specimens, spmnWithCpDps));
-		if (CollectionUtils.isEmpty(spmnWithoutCpDps)) {
+		List<Specimen> spmnWithoutDps = new ArrayList<>(CollectionUtils.removeAll(specimens, spmnWithDps));
+		if (spmnWithoutDps.isEmpty()) {
 			return;
 		}
 
 		Set<Long> allowedSites = AccessCtrlMgr.getInstance().getDistributionOrderAllowedSites(dp);
-		Map<Long, Set<Long>> spmnSitesMap = daoFactory.getSpecimenDao().getSpecimenSites(Utility.collect(spmnWithoutCpDps, "id", true));
+		Map<Long, Set<Long>> spmnSitesMap = daoFactory.getSpecimenDao().getSpecimenSites(Utility.collect(spmnWithoutDps, "id", true));
 		String errorLabels = spmnSitesMap.entrySet().stream()
 			.filter(spmnSites -> CollectionUtils.intersection(spmnSites.getValue(), allowedSites).isEmpty())
 			.map(spmnSites -> specimenMap.get(spmnSites.getKey()).getLabel())

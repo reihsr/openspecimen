@@ -526,9 +526,9 @@ public class CollectionProtocol extends BaseExtensionEntity {
 		
 		updateSites(cp.getSites());
 		updateSpecimenLabelPrintSettings(cp.getSpmnLabelPrintSettings());
-		CollectionUpdater.update(this.coordinators, cp.getCoordinators());
+		CollectionUpdater.update(getCoordinators(), cp.getCoordinators());
 		updateLabelPrePrintMode(cp.getSpmnLabelPrePrintMode());
-		CollectionUpdater.update(this.distributionProtocols, cp.getDistributionProtocols());
+		CollectionUpdater.update(getDistributionProtocols(), cp.getDistributionProtocols());
 	}
 	
 	public void copyTo(CollectionProtocol cp) {

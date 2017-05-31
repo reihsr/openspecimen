@@ -313,10 +313,10 @@
     },
 
     "dp": {
-      "title": "Distribution Protocol settings",
-      "dp": "Distribution Protocol",
+      "title": "Distribution Settings",
       "add_dp": "Add Distribution Protocol",
-      "dup_dp": "The distribution protocol already added to CP."
+      "dup_dp": "Distribution protocol already added to the collection protocol.",
+      "no_dp": "No distribution protocols can be assigned to collection protocol."
     },
 
     "reporting": {
